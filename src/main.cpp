@@ -103,6 +103,7 @@ void setup() {
 
     // Inicializácia senzorických modulov
     tempMgr.begin();
+    anemometer.setDebug(true); // Aktivuje debug výpisy každých 5s
     anemometer.begin();
     windVane.begin();
     aggregator.begin();

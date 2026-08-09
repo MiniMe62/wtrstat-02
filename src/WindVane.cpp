@@ -93,6 +93,14 @@ void WindVane::begin() {
 }
 
 float WindVane::readRatioAveraged(uint8_t samples) {
+#ifdef SIMULATE_WIND_SENSORS
+#if SIMULATE_WIND_SENSORS
+    // Vráti pomer pre nejaký náhodný smer (simulujeme striedanie smerov)
+    int simIdx = random(0, NUM_DIRECTIONS);
+    return CALIBRATION_TABLE[simIdx].ratio;
+#endif
+#endif
+
     uint32_t vaneSum = 0;
     uint32_t vccSum = 0;
     for (uint8_t i = 0; i < samples; i++) {

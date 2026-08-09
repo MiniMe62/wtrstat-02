@@ -4,6 +4,8 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include "Adafruit_MQTT.h"
+#include "Adafruit_MQTT_Client.h"
 #include "DataAggregator.h"
 #include "TimeManager.h"
 #include "Config.h"
@@ -20,4 +22,5 @@ public:
 private:
     bool sendToGoogleSheets(const WeatherSnapshot& snap, const TimeManager& timeMgr);
     bool sendToThingSpeak(const WeatherSnapshot& snap, const TimeManager& timeMgr);
+    bool sendToAdafruitIO(const WeatherSnapshot& snap, const TimeManager& timeMgr);
 };

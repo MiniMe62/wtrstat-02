@@ -1,6 +1,21 @@
 #include "UploaderService.h"
 #include <WiFi.h>
 
+static String urlEncode(const String& value) {
+    String encoded = "";
+    for (int i = 0; i < value.length(); i++) {
+        char c = value.charAt(i);
+        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+            encoded += c;
+        } else {
+            char buf[4];
+            sprintf(buf, "%%%02X", c);
+            encoded += buf;
+        }
+    }
+    return encoded;
+}
+
 UploaderService::UploaderService() {
 }
 
@@ -26,8 +41,9 @@ bool UploaderService::sendSnapshot(const WeatherSnapshot& snap, const TimeManage
 
     bool gsOk = sendToGoogleSheets(snap, timeMgr);
     bool tsOk = sendToThingSpeak(snap, timeMgr);
+    bool aioOk = sendToAdafruitIO(snap, timeMgr);
 
-    return (gsOk && tsOk);
+    return (gsOk && tsOk && aioOk);
 }
 
 bool UploaderService::sendToGoogleSheets(const WeatherSnapshot& snap, const TimeManager& timeMgr) {
@@ -100,13 +116,30 @@ bool UploaderService::sendToThingSpeak(const WeatherSnapshot& snap, const TimeMa
 
     String isoTime = timeMgr.getFormattedISO(snap.timestamp);
 
-    // Explicitné formátovanie teplôt presne na 2 desatinné miesta (napr. 22.00, 22.25, 22.50)
+    // Vytvorenie JSON statusu pre texty a vedľajšie senzory
+    char dirCombo[16];
+    snprintf(dirCombo, sizeof(dirCombo), "%s/%03d", snap.windDirName.c_str(), (int)snap.windDirDeg);
+
+    StaticJsonDocument<128> statusDoc;
+    statusDoc["time"] = timeMgr.getFormattedLocal(snap.timestamp);
+    statusDoc["dir"] = dirCombo;
+    statusDoc["light"] = snap.light;
+
+    String statusJson;
+    serializeJson(statusDoc, statusJson);
+    String encodedStatus = urlEncode(statusJson);
+
+    // Nové mapovanie presne 8 polí + status
     String url = String(Config::TS_SERVER) + "/update?api_key=" + String(Config::TS_API_KEY) +
                  "&field1=" + String(snap.tempIn, 2) +
                  "&field2=" + String(snap.tempOut, 2) +
-                 "&field3=" + String(snap.windSpeedAvg, 1) +
-                 "&field4=" + String(snap.windSpeedMax, 1) +
+                 "&field3=" + String(snap.humidity, 1) +
+                 "&field4=" + String(snap.pressure, 1) +
                  "&field5=" + String(snap.windDirDeg, 0) +
+                 "&field6=" + String(snap.windSpeedAvg, 1) +
+                 "&field7=" + String(snap.windSpeedMax, 1) +
+                 "&field8=" + String(snap.rain, 2) +
+                 "&status=" + encodedStatus +
                  "&created_at=" + isoTime;
 
     Serial.println("[ThingSpeak] Odosielam HTTP GET request...");
@@ -123,3 +156,50 @@ bool UploaderService::sendToThingSpeak(const WeatherSnapshot& snap, const TimeMa
     http.end();
     return false;
 }
+
+bool UploaderService::sendToAdafruitIO(const WeatherSnapshot& snap, const TimeManager& timeMgr) {
+    WiFiClient client;
+    Adafruit_MQTT_Client mqtt(&client, Config::AIO_SERVER, Config::AIO_SERVERPORT, Config::AIO_USERNAME, Config::AIO_KEY);
+    Adafruit_MQTT_Publish groupPub(&mqtt, Config::AIO_GROUP_TOPIC);
+
+    Serial.println("[AdafruitIO] Pripajam sa k MQTT brokeru...");
+    
+    int8_t ret;
+    uint8_t retries = 3;
+    while ((ret = mqtt.connect()) != 0) {
+        Serial.printf("[AdafruitIO] MQTT Chyba: %s\n", mqtt.connectErrorString(ret));
+        Serial.println("[AdafruitIO] Opakujem pokus o 5 sekund...");
+        mqtt.disconnect();
+        delay(5000); 
+        retries--;
+        if (retries == 0) return false;
+    }
+    Serial.println("[AdafruitIO] MQTT Pripojene!");
+
+    StaticJsonDocument<384> doc;
+    // Tieto kľúče musia presne zodpovedať názvom feedov v Adafruit IO skupine (meteo)
+    doc["tempin"] = round(snap.tempIn * 100.0) / 100.0;
+    doc["tempout"] = round(snap.tempOut * 100.0) / 100.0;
+    doc["humidity"] = round(snap.humidity * 10.0) / 10.0;
+    doc["pressure"] = round(snap.pressure * 10.0) / 10.0;
+    doc["wind-speed-avg"] = round(snap.windSpeedAvg * 10.0) / 10.0;
+    doc["wind-speed-max"] = round(snap.windSpeedMax * 10.0) / 10.0;
+    doc["wind-direction"] = round(snap.windDirDeg);
+    doc["light"] = snap.light;
+    doc["rain"] = snap.rain;
+
+    String jsonString;
+    serializeJson(doc, jsonString);
+
+    Serial.printf("[AdafruitIO] Odosielam JSON: %s\n", jsonString.c_str());
+    if (!groupPub.publish(jsonString.c_str())) {
+        Serial.println("[AdafruitIO] Publikovanie zlyhalo.");
+        mqtt.disconnect();
+        return false;
+    }
+    
+    Serial.println("[AdafruitIO] Publikovanie uspesne.");
+    mqtt.disconnect();
+    return true;
+}
+

@@ -5,10 +5,10 @@
 static volatile uint32_t s_windPulseCount = 0;
 static volatile int64_t s_lastPulseTimeUs = 0;
 
-// Hardvérová ISR rutina s 5ms debouncingom
+// Hardvérová ISR rutina s 80ms debouncingom
 void IRAM_ATTR windPulseISR() {
     int64_t nowUs = esp_timer_get_time();
-    if (nowUs - s_lastPulseTimeUs > 5000) { // 5ms softvérový filter zákmity
+    if (nowUs - s_lastPulseTimeUs > 80000) { // 80ms softvérový filter (obmedzí max rýchlosť na ~220 km/h, no silne odfiltruje šum)
         s_windPulseCount++;
         s_lastPulseTimeUs = nowUs;
     }
@@ -46,6 +46,13 @@ void Anemometer::update() {
         s_windPulseCount = 0;
         interrupts();
 
+#ifdef SIMULATE_WIND_SENSORS
+#if SIMULATE_WIND_SENSORS
+        // Simulujeme vetrík, pridáme náhodný počet pulzov
+        pulses = random(5, 50); 
+#endif
+#endif
+
         // Uloženie vzorky do kĺzavého okna
         _pulseHistory[_historyIndex] = pulses;
         _timeHistoryMs[_historyIndex] = elapsedMs;
@@ -73,6 +80,11 @@ void Anemometer::update() {
         float circumference = 2.0f * M_PI * Config::ANEMOMETER_RADIUS_M;
         float rotationsPerSec = hz / (float)Config::ANEMOMETER_PULSES_PER_REV;
         _currentWindSpeed = rotationsPerSec * circumference * Config::ANEMOMETER_CALIBRATION_FACTOR;
+
+        if (_debug) {
+            Serial.printf("[Anemometer Debug] Interval ms: %u, Pulzy v intervale: %u, Pulzy (okno): %u, Hz: %.2f, Speed: %.2f m/s, Pin %d stav: %d\n",
+                elapsedMs, pulses, totalPulses, hz, _currentWindSpeed, _pin, digitalRead(_pin));
+        }
     }
 }
 

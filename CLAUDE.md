@@ -81,3 +81,8 @@ WeatherStation/
 - tie isté dáta sa budú v minútých intervaloch zobrazovať aj pomocou BT low energy.
 - RTC hodiny sa zatiaľ nebudú používať, čas sa bude synchronizovať s dostatočným predstihom pred odosielaním dát z NTP servra a bude sa udržovať v ESP32.
 - projekt ešte nie je celkom dobre premyslený = v pripade potreby /grill-me...
+
+## 8. Dôležité architektonické rozhodnutia z vývoja (wtrStat-02)
+- **Ratiometrické meranie veternej ružice:** Kvôli kolísaniu 3,3V napájania pri záťaži z WiFi (čo posúvalo absolútne hodnoty z ADC) sa smer vetra meria pomerovo. Pridal sa referenčný hardvérový delič na GPIO 32. Všetky ADC merania sa vykonávajú výhradne na **ADC1**, keďže ADC2 je počas aktívnej WiFi zablokovaný hardvérom ESP32.
+- **ThingSpeak Architektúra:** Kanál využíva 8 numerických polí (Teplota dnu/von, Vlhkosť, Tlak, Smer vetra v stupňoch, Rýchlosť, Nárazy, Zrážky) pre účely vykresľovania grafov a MATLAB vizualizácií. Sekundárne dáta a textové informácie (ako napr. Jas, alebo zložený textový smer vetra `"SV/045"`) sa odosielajú zabalené do štruktúrovaného JSONu v poli `status`.
+- **Prepočet barometrického tlaku:** Tlak zo senzora BME280 (po jeho integrácii) bude v kóde automaticky prepočítavaný na hladinu mora (Mean Sea Level Pressure) na základe nadmorskej výšky stanice, čo je štandard pre všetky meteorologické merania.

@@ -13,10 +13,14 @@ struct WeatherSnapshot {
     time_t timestamp;
     float tempIn;
     float tempOut;
+    float humidity = 0.0f;  // Dnu
+    float pressure = 0.0f;  // Von
     float windSpeedAvg;
     float windSpeedMax;
     float windDirDeg;
     String windDirName;
+    float rain = 0.0f;      // Zrážky
+    float light = 0.0f;     // Jas (do JSON)
     bool isValid;
 };
 

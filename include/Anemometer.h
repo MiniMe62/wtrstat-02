@@ -19,7 +19,10 @@ public:
     float getWindSpeed() const { return _currentWindSpeed; }
     uint32_t getTotalPulseCount() const;
 
+    void setDebug(bool debug) { _debug = debug; }
+
 private:
+    bool _debug = false;
     uint8_t _pin;
     uint32_t _lastReportTime;
     float _currentWindSpeed;

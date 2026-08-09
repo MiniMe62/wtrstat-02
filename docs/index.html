@@ -425,31 +425,64 @@
 
         async function fetchLive() {
             try {
-                // Pokus o nacitanie z lokalneho API (ak testujeme priamo na ESP32)
-                const res = await fetch('/api/live');
+                // Skúsime načítať posledné dáta z Adafruit IO skupiny (REST API bez potreby hesla - musí byť PUBLIC)
+                const username = "Minime62";
+                const groupKey = "meteo";
+                const url = `https://io.adafruit.com/api/v2/${username}/groups/${groupKey}`;
+                
+                const res = await fetch(url);
                 if(!res.ok) {
-                    throw new Error("Local API not available");
+                    throw new Error("Nepodarilo sa načítať dáta z Adafruit IO. Je skupina nastavená ako Public?");
                 }
                 const data = await res.json();
-                document.getElementById('connStatus').innerText = "ONLINE (ESP32)";
-                updateUI(data);
-            } catch(e) {
-                console.log("Lokálne API nedostupné. Stránka je na GitHub Pages. Zobrazujem DEMO dáta.");
-                // Zatial DEMO data, kym nie je pripojene MQTT/ThingSpeak
-                const demoData = {
-                    tempIn: 22.4 + (Math.random() - 0.5),
-                    tempOut: 14.1 + (Math.random() - 0.5),
-                    windSpeed: 3.5 + Math.random() * 2,
-                    windDirDeg: Math.floor(Math.random() * 360),
-                    windDirName: "DEMO",
+                
+                // Extrahujeme dáta z feedov
+                const feeds = data.feeds;
+                if (!feeds) return;
+
+                let parsedData = {
+                    tempIn: 0,
+                    tempOut: 0,
+                    windSpeed: 0,
+                    windDirDeg: 0,
+                    windDirName: "--",
                     timestamp: new Date().toLocaleTimeString('sk-SK')
                 };
-                updateUI(demoData);
+
+                // Zozbierame dáta podľa kľúčov (Adafruit ich vracia vo formáte skupina.feed)
+                for (const feed of feeds) {
+                    if (feed.last_value === null) continue;
+                    const val = parseFloat(feed.last_value);
+                    
+                    switch(feed.key) {
+                        case 'meteo.tempin': parsedData.tempIn = val; break;
+                        case 'meteo.tempout': parsedData.tempOut = val; break;
+                        case 'meteo.wind-speed-avg': parsedData.windSpeed = val; break;
+                        case 'meteo.wind-direction': 
+                            parsedData.windDirDeg = val; 
+                            // Jednoduchá aproximácia názvu zo stupňov
+                            const dirs = ["S", "SV", "V", "JV", "J", "JZ", "Z", "SZ"];
+                            parsedData.windDirName = dirs[Math.round(((val % 360) / 45)) % 8];
+                            break;
+                    }
+                }
+                
+                // Získame aj timestamp posledného updatu
+                const tempInFeed = feeds.find(f => f.key === 'meteo.tempin');
+                if (tempInFeed) {
+                    parsedData.timestamp = new Date(tempInFeed.updated_at).toLocaleTimeString('sk-SK');
+                }
+
+                document.getElementById('connStatus').innerText = "ONLINE (Adafruit IO)";
+                updateUI(parsedData);
+            } catch(e) {
+                console.log("Chyba:", e);
+                document.getElementById('connStatus').innerText = "OFFLINE / CHYBA";
             }
         }
         
-        // Zatial sa refresuje kazdych 5 sekund. Pre ThingSpeak/MQTT by bolo lepsie aspon 15s.
-        setInterval(fetchLive, 5000);
+        // Obnovovanie každých 15 sekúnd (šetrí API limity)
+        setInterval(fetchLive, 15000);
         fetchLive();
     </script>
 </body>

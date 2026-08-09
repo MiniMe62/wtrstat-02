@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include "Secrets.h"
 
 /**
  * @brief Globálna konfigurácia pre wtrStat-02
@@ -59,6 +60,13 @@ namespace Config {
     constexpr const char* TS_API_KEY = "M4SJ7BSW2LR4WQVD";
 #endif
 
+    // Adafruit IO
+    constexpr const char* AIO_SERVER = "io.adafruit.com";
+    constexpr uint16_t AIO_SERVERPORT = 1883;
+    constexpr const char* AIO_USERNAME = "Minime62";
+    constexpr const char* AIO_KEY = SECRET_AIO_KEY;
+    constexpr const char* AIO_GROUP_TOPIC = "Minime62/groups/meteo";
+
     // Časovanie a intervaly
     constexpr uint32_t MEASURE_INTERVAL_MIN = 15;      // 15-minútový cyklus odosielania
     constexpr uint32_t SENSOR_READ_INTERVAL_MS = 2000;   // Čítanie senzorov každé 2s
@@ -67,7 +75,7 @@ namespace Config {
 
     // Kalibrácia Anemometra
     constexpr float ANEMOMETER_RADIUS_M = 0.195f;        // Polomer misiek (19.5 cm)
-    constexpr float ANEMOMETER_CALIBRATION_FACTOR = 2.0f; // Kalibračný koeficient
+    constexpr float ANEMOMETER_CALIBRATION_FACTOR = 4.0f; // Kalibračný koeficient (odporúčané 3-4+)
     constexpr uint8_t ANEMOMETER_PULSES_PER_REV = 1;
 
     // Rozlíšenie DS18B20 (10 = 0.25°C)
@@ -76,4 +84,7 @@ namespace Config {
     // Debug prepínače
     constexpr bool DEBUG_ENABLE = true;
     constexpr bool ENABLE_OLED = false;
+    
+    // Simulácia vstupov pre vývoj (bez pripojených senzorov)
+    #define SIMULATE_WIND_SENSORS false
 }

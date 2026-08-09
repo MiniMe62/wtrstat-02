@@ -26,3 +26,91 @@ Preto sú všetky analógové senzory (WindVane, TEMT6000 Jas a VCC Monitor) spr
 V triede `WindVane` sú dostupné metódy na diagnostiku:
 * `printDebugStats()`: Vypíše štatistiku (min, max, priemer) pre každý detegovaný smer za posledný 15-minútový cyklus.
 * `printLiveDebug()`: Vypisuje surové hodnoty (`vaneSum`, `vccSum`), výsledný vypočítaný pomer a interpretovaný smer. Tento nástroj slúži na rýchle odhalenie hardvérových chýb (napríklad zlepiaceho sa Reed kontaktu).
+
+## 6. Architektúra ThingSpeak a Cloud odosielania
+Vzhľadom na pevný limit 8 numerických polí (Fields) v jednom ThingSpeak kanáli sme zvolili hybridný prístup pre optimalizáciu dát:
+
+### Priradenie polí (Fields 1-8):
+Tieto polia sú vyhradené **výhradne pre číselné hodnoty**, z ktorých ThingSpeak dokáže automaticky kresliť čiarové grafy:
+1. `Temperature In`
+2. `Temperature Out`
+3. `Humidity`
+4. `Pressure`
+5. `Wind Direction` (v stupňoch 0-360)
+6. `Wind Speed Avg`
+7. `Wind Speed Max`
+8. `Rain`
+
+### Pole Status (JSON Payload):
+Menej dôležité dáta a najmä textové údaje sa odosielajú zabalené do štruktúrovaného JSON objektu vloženého priamo do poľa `status`. ThingSpeak limituje toto pole na 255 znakov.
+Príklad: `status={"dir":"SV/045","light":0.0}`
+
+## 7. Návod: MATLAB Vizualizácia smeru vetra (Štýl SHMÚ)
+Keďže do `Field 5` ukladáme smer vetra v stupňoch, môžeme v ThingSpeaku vytvoriť vlastný bodový graf, ktorý stupne prepíše na textové kategórie (S, SV, V...).
+
+**Postup nastavenia v ThingSpeak:**
+1. Hore v menu vyberte **Apps** -> **MATLAB Visualizations**.
+2. Kliknite na **New** -> **Custom (no starter code)** -> **Create**.
+3. Do okna vložte nasledujúci kód (nezabudnite upraviť `channelID` a prípadne `readAPIKey` v záložke API Keys):
+
+```matlab
+% 1. Nastavenia kanálu
+channelID = 12345678; 
+readAPIKey = 'TVOJ_READ_API_KEY'; 
+
+% 2. Načítaj dáta za posledný 1 deň
+[data, time] = thingSpeakRead(channelID, 'Field', 5, 'NumDays', 1, 'ReadKey', readAPIKey);
+
+% 2b. Preveď čas z UTC na stredoeurópsky čas (automaticky rieši letný/zimný čas)
+time.TimeZone = 'UTC';
+time.TimeZone = 'Europe/Bratislava';
+
+% 3. Nakresli bodový graf (červené guličky)
+scatter(time, data, 'filled', 'MarkerFaceColor', 'r');
+
+% 4. Y-os: Prepiš čísla na textové skratky svetových strán
+yticks([0 45 90 135 180 225 270 315 360]);
+yticklabels({'S', 'SV', 'V', 'JV', 'J', 'JZ', 'Z', 'SZ', 'S'});
+ylim([0 360]);
+
+% 5. X-os: Značky ukotvené presne na polnoc s krokom 6 hodín (00:00, 06:00, 12:00, 18:00)
+ax = gca;
+startOfGraph = dateshift(time(1), 'start', 'day');
+endOfGraph = dateshift(time(end), 'start', 'day') + days(1);
+ax.XAxis.TickValues = startOfGraph : hours(6) : endOfGraph;
+xtickformat('dd.MM. HH:mm');
+xtickangle(45);
+
+% 6. Kozmetika
+title('História smeru vetra');
+ylabel('Smer');
+grid on;
+```
+4. Kliknite na **Save and Run**.
+5. V sekcii *Display Settings* (úplne dole) zaškrtnite **Add/Edit this visualization to a channel** a vyberte svoj meteo kanál. Graf sa tým pridá na vašu verejnú nástenku.
+
+## 8. Simulácia veterných senzorov pre vývoj
+Pre umožnenie testovania logiky stanice, spojenia na cloud či webového dashboardu bez nutnosti mať fyzicky pripojené veterné senzory na stole, je k dispozícii simulačný režim.
+
+**Ako to funguje:**
+Keď je režim zapnutý, program ignoruje reálne hardvérové prerušenia z anemometra a napätia na ADC pre WindVane. Namiesto toho:
+* **Anemometer:** Každých 5 sekúnd vygeneruje náhodný počet impulzov (náhodný vetrík).
+* **WindVane (Smerovka):** Pri každom meraní vráti náhodný pomer reprezentujúcy jeden zo 16 nakalibrovaných smerov, takže sa smer vetra plynule mení.
+
+**Ako zapnúť/vypnúť simuláciu:**
+V súbore `include/Config.h` na konci súboru upravte makro `SIMULATE_WIND_SENSORS`:
+```cpp
+// Zapne generovanie náhodných (fake) dát pre veterné senzory
+#define SIMULATE_WIND_SENSORS true 
+
+// Vypne simuláciu, kód začne okamžite čítať dáta z reálneho hardvéru (POUŽIŤ V PRODUKCII)
+// #define SIMULATE_WIND_SENSORS false 
+```
+*Pozor: Nezabudnite prepnúť na `false`, keď stanicu umiestnite do exteriéru!*
+
+## 9. Hardvérové odrušenie Anemometra (Hall Senzor)
+Ak sa na anemometri prejavujú anomálie (napr. nereálne rýchlosti vetra 100+ m/s) pri napájaní zo spínaných zdrojov (napr. USB nabíjačky) alebo cez dlhší kábel, ide s najväčšou pravdepodobnosťou o elektromagnetické rušenie (EMI). Keďže interný pull-up rezistor na ESP32 je príliš slabý (~45 kΩ), neudrží signál stabilný a na pin preniká napr. 50 Hz šum.
+
+**Odporúčané hardvérové úpravy (pre Dátový pin anemometra):**
+1. **Externý Pull-Up rezistor (Priorita):** Zapojiť rezistor **4.7 kΩ** (alebo v krajnom prípade aj 1 kΩ až 10 kΩ) medzi Dátový pin a napätie **3.3V**. Tento rezistor zabezpečí tvrdú logickú úroveň (HIGH) a eliminuje väčšinu vonkajšieho šumu.
+2. **Filtračný kondenzátor (Ideálne doplnenie):** Zapojiť malý keramický kondenzátor (napr. **100 nF**) priamo medzi Dátový pin a GND pre pohltenie rýchlych napäťových špičiek.
