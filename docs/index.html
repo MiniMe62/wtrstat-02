@@ -425,20 +425,18 @@
 
         async function fetchLive() {
             try {
-                // Skúsime načítať posledné dáta z Adafruit IO skupiny (REST API bez potreby hesla - musí byť PUBLIC)
+                // Skúsime načítať posledné dáta z Adafruit IO (REST API bez potreby hesla - musí byť PUBLIC)
                 const username = "Minime62";
-                const groupKey = "meteo";
-                const url = `https://io.adafruit.com/api/v2/${username}/groups/${groupKey}`;
+                // Kedze mas nastavene ako public jednotlive feedy a nie celu skupinu, volame endpoint pre vsetky feedy
+                const url = `https://io.adafruit.com/api/v2/${username}/feeds`;
                 
                 const res = await fetch(url);
                 if(!res.ok) {
-                    throw new Error("Nepodarilo sa načítať dáta z Adafruit IO. Je skupina nastavená ako Public?");
+                    throw new Error("Nepodarilo sa načítať dáta z Adafruit IO.");
                 }
-                const data = await res.json();
+                const feeds = await res.json(); // API vrati rovno pole feedov
                 
-                // Extrahujeme dáta z feedov
-                const feeds = data.feeds;
-                if (!feeds) return;
+                if (!feeds || feeds.length === 0) return;
 
                 let parsedData = {
                     tempIn: 0,
@@ -450,8 +448,10 @@
                 };
 
                 // Zozbierame dáta podľa kľúčov (Adafruit ich vracia vo formáte skupina.feed)
+                let hasData = false;
                 for (const feed of feeds) {
                     if (feed.last_value === null) continue;
+                    hasData = true;
                     const val = parseFloat(feed.last_value);
                     
                     switch(feed.key) {
