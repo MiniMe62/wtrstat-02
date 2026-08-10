@@ -444,7 +444,7 @@
                     windSpeed: 0,
                     windDirDeg: 0,
                     windDirName: "--",
-                    timestamp: new Date().toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' })
+                    timestamp: new Date().toLocaleString('sk-SK', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
                 };
 
                 // Zozbierame dáta podľa kľúčov (Adafruit ich vracia vo formáte skupina.feed)
@@ -470,7 +470,7 @@
                 // Získame aj timestamp posledného updatu
                 const tempInFeed = feeds.find(f => f.key === 'meteo.tempin');
                 if (tempInFeed && tempInFeed.last_value_at) {
-                    parsedData.timestamp = new Date(tempInFeed.last_value_at).toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
+                    parsedData.timestamp = new Date(tempInFeed.last_value_at).toLocaleString('sk-SK', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 }
 
                 document.getElementById('connStatus').innerText = "ONLINE (Adafruit IO)";
