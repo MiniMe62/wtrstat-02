@@ -469,8 +469,8 @@
                 
                 // Získame aj timestamp posledného updatu
                 const tempInFeed = feeds.find(f => f.key === 'meteo.tempin');
-                if (tempInFeed) {
-                    parsedData.timestamp = new Date(tempInFeed.updated_at).toLocaleTimeString('sk-SK');
+                if (tempInFeed && tempInFeed.last_value_at) {
+                    parsedData.timestamp = new Date(tempInFeed.last_value_at).toLocaleTimeString('sk-SK');
                 }
 
                 document.getElementById('connStatus').innerText = "ONLINE (Adafruit IO)";
