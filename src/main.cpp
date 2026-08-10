@@ -21,15 +21,17 @@ WindVane windVane(Pinout::WIND_VANE_PIN);
 
 WifiService wifiService;
 TimeManager timeMgr;
-DataAggregator aggregator;
+DataAggregator aggregator15Min;
+DataAggregator aggregator1Min;
 UploaderService uploader;
 BleService bleService;
 WebServerManager webServerMgr;
 
 Scheduler runner;
 
-// Časové razítko poslednej odoslanej 15-minútovej záverky (ochrana pred opakovaním v tej istej sekunde)
-static time_t s_lastUploadedMark = 0;
+// Časové razítko poslednej odoslanej 15-minútovej a 1-minútovej záverky
+static time_t s_lastUploadedMark15Min = 0;
+static time_t s_lastUploadedMark1Min = 0;
 
 // ================= ULOHY TASKSCHEDULER =================
 
@@ -37,7 +39,8 @@ static time_t s_lastUploadedMark = 0;
 void cbSensorRead() {
     tempMgr.update();
     anemometer.update();
-    aggregator.sample(tempMgr, anemometer, windVane);
+    aggregator15Min.sample(tempMgr, anemometer, windVane);
+    aggregator1Min.sample(tempMgr, anemometer, windVane);
 }
 
 // 2. BLE Advertising aktualizácia každých 60 sekúnd
@@ -45,37 +48,48 @@ void cbBleUpdate() {
     bleService.updatePayload(tempMgr, anemometer, windVane, timeMgr);
 }
 
-// 3. Kontrola 15-minútového intervalu (hh:00:00, hh:15:00, hh:30:00, hh:45:00) každú sekundu
-void cbCheckUploadMark() {
-    time_t nowUtc = timeMgr.getUtcTime();
-    
-    // Zistíme lokálne minúty a sekundy
-    time_t localT = timeMgr.getLocalTime();
-    uint8_t m = minute(localT);
-    uint8_t s = second(localT);
+// 3a. Kontrola 15-minútového intervalu každú sekundu
+void cbCheckUploadMark15Min() {
+    time_t currentMark = timeMgr.getMarkTime(Config::MEASURE_INTERVAL_MIN);
 
-    // Ak je presne minute % 15 == 0 a second == 0
-    if ((m % Config::MEASURE_INTERVAL_MIN == 0) && (s == 0)) {
-        time_t currentMark = timeMgr.getMarkTime();
+    if (currentMark != s_lastUploadedMark15Min && s_lastUploadedMark15Min != 0) {
+        s_lastUploadedMark15Min = currentMark;
+        Serial.printf("\n[%s] [MARK] Zistený %d-minútový interval! Spúšťam GS/TS uploader...\n",
+                      timeMgr.getFormattedCustom().c_str(), Config::MEASURE_INTERVAL_MIN);
 
-        if (currentMark != s_lastUploadedMark) {
-            s_lastUploadedMark = currentMark;
-            Serial.printf("\n[%s] [MARK] Zistený 15-minútový interval (%02d:00)! Spúšťam uploader...\n",
-                          timeMgr.getFormattedCustom().c_str(), m);
-
-            // Vytvorenie a odoslanie 15-minútovej záverky
-            WeatherSnapshot snap = aggregator.finalizeSnapshot(currentMark, windVane);
+        WeatherSnapshot snap = aggregator15Min.finalizeSnapshot(currentMark, windVane);
             if (snap.isValid) {
-                uploader.sendSnapshot(snap, timeMgr);
+                uploader.send15MinSnapshot(snap, timeMgr);
             } else {
                 Serial.printf("[%s] [MARK] Dáta zo senzorov nie sú platné, vynechávam upload.\n",
                               timeMgr.getFormattedCustom().c_str());
             }
 
-            // Reset akumulátorov pre ďalší 15-minútový cyklus
-            aggregator.reset();
-            windVane.resetAggregation();
-        }
+        aggregator15Min.reset();
+        windVane.resetAggregation();
+    } else if (s_lastUploadedMark15Min == 0) {
+        // Inicializácia pri štarte, aby to neodoslalo hneď v 0. sekunde behu
+        s_lastUploadedMark15Min = currentMark;
+    }
+}
+
+// 3b. Kontrola 1-minútového intervalu pre Adafruit IO
+void cbCheckUploadMark1Min() {
+    time_t currentMark = timeMgr.getMarkTime(Config::MEASURE_INTERVAL_FAST_MIN);
+
+    if (currentMark != s_lastUploadedMark1Min && s_lastUploadedMark1Min != 0) {
+        s_lastUploadedMark1Min = currentMark;
+        Serial.printf("\n[%s] [MARK] Zistený %d-minútový interval! Spúšťam AdafruitIO uploader...\n",
+                      timeMgr.getFormattedCustom().c_str(), Config::MEASURE_INTERVAL_FAST_MIN);
+
+        WeatherSnapshot snap = aggregator1Min.finalizeSnapshot(currentMark, windVane);
+            if (snap.isValid) {
+                uploader.send1MinSnapshot(snap, timeMgr);
+            }
+            
+        aggregator1Min.reset();
+    } else if (s_lastUploadedMark1Min == 0) {
+        s_lastUploadedMark1Min = currentMark;
     }
 }
 
@@ -90,7 +104,8 @@ void cbPrintLiveWindDebug() {
 // Definovanie úloh TaskScheduler
 Task tSensorRead(Config::SENSOR_READ_INTERVAL_MS, TASK_FOREVER, &cbSensorRead);
 Task tBleUpdate(Config::BLE_UPDATE_INTERVAL_MS, TASK_FOREVER, &cbBleUpdate);
-Task tCheckUpload(1000, TASK_FOREVER, &cbCheckUploadMark);
+Task tCheckUpload15Min(1000, TASK_FOREVER, &cbCheckUploadMark15Min);
+Task tCheckUpload1Min(1000, TASK_FOREVER, &cbCheckUploadMark1Min);
 Task tWindDebug(2000, TASK_FOREVER, &cbPrintWindDebug); // Debug WindVane každých 10 sekúnd (len pre vývoj, vypnúť v produkcii) 
 Task tLiveWindDebug(2000, TASK_FOREVER, &cbPrintLiveWindDebug);
 
@@ -106,7 +121,8 @@ void setup() {
     anemometer.setDebug(true); // Aktivuje debug výpisy každých 5s
     anemometer.begin();
     windVane.begin();
-    aggregator.begin();
+    aggregator15Min.begin();
+    aggregator1Min.begin();
 
     // WiFi a Čas
     bool wifiOk = wifiService.connectBestNetwork();
@@ -124,13 +140,15 @@ void setup() {
     runner.init();
     runner.addTask(tSensorRead);
     runner.addTask(tBleUpdate);
-    runner.addTask(tCheckUpload);
+    runner.addTask(tCheckUpload15Min);
+    runner.addTask(tCheckUpload1Min);
     runner.addTask(tWindDebug); // Len pre vývoj, vypnúť v produkcii
     runner.addTask(tLiveWindDebug); // Len pre vývoj, vypnúť v produkcii
 
     tSensorRead.enable();
     tBleUpdate.enable();
-    tCheckUpload.enable();
+    tCheckUpload15Min.enable();
+    tCheckUpload1Min.enable();
     tWindDebug.enable(); // Len pre vývoj, vypnúť v produkcii
     tLiveWindDebug.enable(); // Len pre vývoj, vypnúť v produkcii
 

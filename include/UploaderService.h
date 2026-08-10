@@ -4,8 +4,6 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-#include "Adafruit_MQTT.h"
-#include "Adafruit_MQTT_Client.h"
 #include "DataAggregator.h"
 #include "TimeManager.h"
 #include "Config.h"
@@ -17,7 +15,8 @@ class UploaderService {
 public:
     UploaderService();
 
-    bool sendSnapshot(const WeatherSnapshot& snap, const TimeManager& timeMgr);
+    bool send15MinSnapshot(const WeatherSnapshot& snap, const TimeManager& timeMgr);
+    bool send1MinSnapshot(const WeatherSnapshot& snap, const TimeManager& timeMgr);
 
 private:
     bool sendToGoogleSheets(const WeatherSnapshot& snap, const TimeManager& timeMgr);

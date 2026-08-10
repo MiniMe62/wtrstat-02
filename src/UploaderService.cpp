@@ -19,7 +19,7 @@ static String urlEncode(const String& value) {
 UploaderService::UploaderService() {
 }
 
-bool UploaderService::sendSnapshot(const WeatherSnapshot& snap, const TimeManager& timeMgr) {
+bool UploaderService::send15MinSnapshot(const WeatherSnapshot& snap, const TimeManager& timeMgr) {
     if (WiFi.status() != WL_CONNECTED) {
         Serial.println("[Uploader] WiFi nie je pripojené! Odosielanie zrušené.");
         return false;
@@ -41,9 +41,16 @@ bool UploaderService::sendSnapshot(const WeatherSnapshot& snap, const TimeManage
 
     bool gsOk = sendToGoogleSheets(snap, timeMgr);
     bool tsOk = sendToThingSpeak(snap, timeMgr);
-    bool aioOk = sendToAdafruitIO(snap, timeMgr);
 
-    return (gsOk && tsOk && aioOk);
+    return (gsOk && tsOk);
+}
+
+bool UploaderService::send1MinSnapshot(const WeatherSnapshot& snap, const TimeManager& timeMgr) {
+    if (WiFi.status() != WL_CONNECTED) return false;
+    
+    if (Config::DRY_RUN_UPLOAD) return true;
+
+    return sendToAdafruitIO(snap, timeMgr);
 }
 
 bool UploaderService::sendToGoogleSheets(const WeatherSnapshot& snap, const TimeManager& timeMgr) {
@@ -158,48 +165,71 @@ bool UploaderService::sendToThingSpeak(const WeatherSnapshot& snap, const TimeMa
 }
 
 bool UploaderService::sendToAdafruitIO(const WeatherSnapshot& snap, const TimeManager& timeMgr) {
-    WiFiClient client;
-    Adafruit_MQTT_Client mqtt(&client, Config::AIO_SERVER, Config::AIO_SERVERPORT, Config::AIO_USERNAME, Config::AIO_KEY);
-    Adafruit_MQTT_Publish groupPub(&mqtt, Config::AIO_GROUP_TOPIC);
+    if (WiFi.status() != WL_CONNECTED) return false;
 
-    Serial.println("[AdafruitIO] Pripajam sa k MQTT brokeru...");
-    
-    int8_t ret;
-    uint8_t retries = 3;
-    while ((ret = mqtt.connect()) != 0) {
-        Serial.printf("[AdafruitIO] MQTT Chyba: %s\n", mqtt.connectErrorString(ret));
-        Serial.println("[AdafruitIO] Opakujem pokus o 5 sekund...");
-        mqtt.disconnect();
-        delay(5000); 
-        retries--;
-        if (retries == 0) return false;
+    WiFiClientSecure client;
+    client.setInsecure(); // Pre HTTPS spojenie bez certifikátu
+
+    HTTPClient http;
+    // Adafruit IO API v2 endpoint pre skupinové dáta
+    String url = "https://io.adafruit.com/api/v2/" + String(Config::AIO_USERNAME) + "/groups/meteo/data";
+
+    if (!http.begin(client, url)) {
+        Serial.println("[AdafruitIO] Chyba inicializácie HTTP klienta");
+        return false;
     }
-    Serial.println("[AdafruitIO] MQTT Pripojene!");
 
-    StaticJsonDocument<384> doc;
+    http.addHeader("X-AIO-Key", Config::AIO_KEY);
+    http.addHeader("Content-Type", "application/json");
+
+    // Vytvorenie JSON dokumentu
+    StaticJsonDocument<1024> doc;
+    doc["created_at"] = timeMgr.getFormattedISO(snap.timestamp);
+    
+    // Zoznam hodnôt pre jednotlivé feedy v skupine
+    JsonArray feeds = doc.createNestedArray("feeds");
+
+    auto addFeed = [&](const char* key, float val, int decimals) {
+        JsonObject f = feeds.createNestedObject();
+        f["key"] = key;
+        if (decimals == 0) {
+            f["value"] = String((int)round(val));
+        } else {
+            f["value"] = String(val, decimals);
+        }
+    };
+
     // Tieto kľúče musia presne zodpovedať názvom feedov v Adafruit IO skupine (meteo)
-    doc["tempin"] = round(snap.tempIn * 100.0) / 100.0;
-    doc["tempout"] = round(snap.tempOut * 100.0) / 100.0;
-    doc["humidity"] = round(snap.humidity * 10.0) / 10.0;
-    doc["pressure"] = round(snap.pressure * 10.0) / 10.0;
-    doc["wind-speed-avg"] = round(snap.windSpeedAvg * 10.0) / 10.0;
-    doc["wind-speed-max"] = round(snap.windSpeedMax * 10.0) / 10.0;
-    doc["wind-direction"] = round(snap.windDirDeg);
-    doc["light"] = snap.light;
-    doc["rain"] = snap.rain;
+    addFeed("tempin", snap.tempIn, 2);
+    addFeed("tempout", snap.tempOut, 2);
+    addFeed("humidity", snap.humidity, 0); // Vlhkosť na celé číslo
+    addFeed("pressure", snap.pressure, 0); // Tlak na celé číslo
+    addFeed("wind-speed-avg", snap.windSpeedAvg, 1); // Rýchlosť na 0.1
+    addFeed("wind-speed-max", snap.windSpeedMax, 1);
+    addFeed("wind-direction", snap.windDirDeg, 0); // Stupne na celé číslo
+    addFeed("light", snap.light, 0);
+    addFeed("rain", snap.rain, 0);
 
     String jsonString;
     serializeJson(doc, jsonString);
 
-    Serial.printf("[AdafruitIO] Odosielam JSON: %s\n", jsonString.c_str());
-    if (!groupPub.publish(jsonString.c_str())) {
-        Serial.println("[AdafruitIO] Publikovanie zlyhalo.");
-        mqtt.disconnect();
-        return false;
-    }
-    
-    Serial.println("[AdafruitIO] Publikovanie uspesne.");
-    mqtt.disconnect();
-    return true;
-}
+    Serial.println("[AdafruitIO] Odosielam cez HTTPS s presným časom (:00)...");
+    int httpCode = http.POST(jsonString);
 
+    bool success = false;
+    if (httpCode > 0) {
+        if (httpCode == HTTP_CODE_OK || httpCode == 200 || httpCode == 201) {
+            Serial.printf("[AdafruitIO] Úspešne odoslané! (Kód: %d)\n", httpCode);
+            success = true;
+        } else {
+            Serial.printf("[AdafruitIO] Chyba: Server vrátil kód %d\n", httpCode);
+            String payload = http.getString();
+            Serial.println(payload);
+        }
+    } else {
+        Serial.printf("[AdafruitIO] Chyba spojenia: %s\n", http.errorToString(httpCode).c_str());
+    }
+
+    http.end();
+    return success;
+}

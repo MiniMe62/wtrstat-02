@@ -65,10 +65,11 @@ namespace Config {
     constexpr uint16_t AIO_SERVERPORT = 1883;
     constexpr const char* AIO_USERNAME = "Minime62";
     constexpr const char* AIO_KEY = SECRET_AIO_KEY;
-    constexpr const char* AIO_GROUP_TOPIC = "Minime62/groups/meteo";
+    constexpr const char* AIO_GROUP_TOPIC = "Minime62/groups/meteo/json";
 
     // Časovanie a intervaly
-    constexpr uint32_t MEASURE_INTERVAL_MIN = 15;      // 15-minútový cyklus odosielania
+    constexpr uint32_t MEASURE_INTERVAL_MIN = 15;      // 15-minútový cyklus odosielania (GS, TS)
+    constexpr uint32_t MEASURE_INTERVAL_FAST_MIN = 1;  // 1-minútový cyklus odosielania (Adafruit IO)
     constexpr uint32_t SENSOR_READ_INTERVAL_MS = 2000;   // Čítanie senzorov každé 2s
     constexpr uint32_t BLE_UPDATE_INTERVAL_MS = 60000;   // BLE broadcast každých 60s
     constexpr uint32_t HALL_REPORT_INTERVAL_MS = 5000;   // Anemometer kĺzavé okno
