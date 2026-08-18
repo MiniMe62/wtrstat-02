@@ -122,3 +122,27 @@ SSD1306 OLED displej trpí vypaľovaním pixelov (burn-in) pri 24/7 prevádzke. 
 * **Dotykový pin (Touch8 = GPIO 33):** Na tento pin stačí pripojiť kúsok vodiča, skrutku na krabičke alebo plôšku z medi/hliníka.
 * **Časovač zhasnutia (`OLED_TIMEOUT_MS` v `Config.h`):** Po štarte alebo dotyku svieti displej 60 sekúnd (nastaviteľné), potom sa automaticky vypne cez hardvérový príkaz `SSD1306_DISPLAYOFF`.
 * **Minimálna spotreba & I2C úspora:** Po zhasnutí displeja sa zastaví aj zbytočné prekresľovanie cez I2C zbernicu. Dotyk okamžite obnoví zobrazenie (`SSD1306_DISPLAYON`).
+
+## 11. Časovanie a bezpečná NTP synchronizácia (1× za hodinu s offsetom)
+Dlhodobý nepretržitý beh bez reštartu vyžaduje korekciu prirodzeného driftu interného kryštálu ESP32 (~2 až 5 sekúnd za pár dní).
+* **Hodinová synchronizácia (`tNtpSync`):** Úloha v `TaskScheduler` beží s periodicitou **1 hodina (3 600 000 ms)**.
+* **Časové odsadenie (+7 minút po štarte):** Synchronizácia je posunutá o 7 minút (`enableDelayed(7 * 60 * 1000)`), takže prebieha napr. v minútach `XX:07`. Tým sa úplne predchádza sieťovej kolízii s 15-minútovými záverkami (`:00, :15, :30, :45`).
+* **Zaručenie presného času `:00` na cloudoch (Adafruit IO, ThingSpeak, Google Sheets):**
+  * Uploader sa spúšťa v sekunde **`:02`** novej periódy a odosiela záverku s presným timestampom `:00` sekúnd.
+  * Týmto 2-sekundovým posunom sa garantuje, že cloudové servery (najmä Adafruit IO) nikdy neodmietnu balíček chybou *"data created_at may not be in the future"*, a zároveň v databázach nezostávajú náhodné sekundy spôsobené sieťovým oneskorením.
+
+## 12. Robustné neblokujúce pripojenie k WiFi (`WiFiMulti`)
+* Pôvodné synchrónne volanie `WiFi.scanNetworks()` v `setup()` mohlo pri rušení zablokovať štart celého systému a TaskScheduleru.
+* Prechodom na **`WiFiMulti`** si ESP32 automaticky a neblokujúco manažuje pripojenie k najsilnejšej známej sieti (zo zoznamu `KNOWN_WIFI_NETWORKS`).
+* Stanica má nastavený tvrdý limit (6s timeout) – ak WiFi nie je dostupné, stanica plynule pokračuje v offline režime (lokálny zber, OLED, senzory) a pokusy o pripojenie opakuje na pozadí v `loop()`.
+
+## 13. Filtrovanie plauzibilných hodnôt (Firmvér & Web)
+Viacúrovňová ochrana pred zápisom chybných / rušivých dát:
+* **Teploty (DS18B20):** Akceptovaný rozsah **`-40.0 °C` až `+60.0 °C`**. Automaticky sa zahadzujú hodnoty `-127.0 °C` (odpojený senzor) a `+85.0 °C` (neinicializovaný register Dallas pred prvou konverziou).
+* **Rýchlosť vetra (Anemometer):** Priemerná rýchlosť je obmedzená na max **`40.0 m/s` (~144 km/h)**, náraz na max **`45.0 m/s`**, čo spoľahlivo eliminuje nočné špičky z elektromagnetického rušenia.
+
+## 14. Webový Dashboard & GitHub Pages
+Integrovaný webový dashboard (dostupný lokálne na IP adrese stanice a verejne cez GitHub Pages v priečinku `docs/`):
+* **Vycentrovaná Veterná Ružica (Polar Area Chart):** Sever (S) je striktne zarovnaný vertikálne na 12:00 (`startAngle: -11.25`).
+* **Interaktívny Teplotný Graf:** Priebeh $T_{in}$ a $T_{out}$ s kubickým Bézierovým vyhladzovaním, prepínaním pohľadov (`Obe`, `Tin`, `Tout`) a automatickým prispôsobením citlivosti Y-osi.
+* **Prepínač bubliniek (`💬 Bubliny ZAP/VYP`):** Špeciálne tlačidlo v záhlaví každého grafu optimalizované pre smartfóny umožňujúce jedným ťuknutím skryť/zobraziť tooltip bublinu, aby na mobile neprekrývala krivky.
