@@ -20,8 +20,13 @@ namespace Config {
     constexpr uint32_t SERIAL_BAUD = 115200;
 
     // Bezpečnostný prepínač pre simuláciu odosielania (Dry Run)
-    // Ak true: Dáta sa iba vypíšu do sériového monitora, no NEODOSLÚ sa do cloudu.
-    constexpr bool DRY_RUN_UPLOAD = false; // Nastavte na false pre odosielanie na testovací kanál
+    // Ak true: Dáta sa iba vypíšu do sériového monitora, no NEODOSLÚ sa do žiadneho cloudu.
+    constexpr bool DRY_RUN_UPLOAD = false; // Nastavte na false pre bežný beh
+
+    // Prepínače odosielania do jednotlivých cloudových služieb
+    constexpr bool ENABLE_THINGSPEAK_UPLOAD = false;      // VYPÍNAME pre šetrenie limitu správ na ThingSpeak
+    constexpr bool ENABLE_GOOGLE_SHEETS_UPLOAD = false;    // Google Sheets ukladanie aktívne
+    constexpr bool ENABLE_ADAFRUIT_IO_UPLOAD = false;      // Adafruit IO 1-minútové odosielanie aktívne
 
     // Štruktúra pre WiFi prístupový bod
     struct WifiAp {
@@ -84,8 +89,12 @@ namespace Config {
 
     // Debug prepínače
     constexpr bool DEBUG_ENABLE = true;
-    constexpr bool ENABLE_OLED = false;
+    constexpr bool ENABLE_OLED = true;
+    constexpr uint32_t OLED_TIMEOUT_MS = 60000;           // Doba svietenia OLED po štarte / dotyku v ms (60000 = 1 min, 0 = stále zapnuté)
+    constexpr uint16_t OLED_TOUCH_THRESHOLD = 150;        // Prah citlivosti kapacitného dotyku (hodnota klesá pri dotyku nastavene na 150 - bez dotyku je cca 760)
+    constexpr uint32_t OLED_TOUCH_DEBOUNCE_MS = 300;      // Debounce filter proti viacnásobnému dotyku v ms
     
     // Simulácia vstupov pre vývoj (bez pripojených senzorov)
-    #define SIMULATE_WIND_SENSORS false
+    #define SIMULATE_WIND_SENSORS true
+    #define SIMULATE_TEMP_SENSORS true
 }

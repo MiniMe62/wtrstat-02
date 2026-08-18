@@ -6,15 +6,20 @@ WifiService::WifiService() : _connectedSSID("") {
 bool WifiService::connectBestNetwork() {
     Serial.println("[WiFi] Skenujem dostupné WiFi siete...");
     WiFi.mode(WIFI_STA);
+    WiFi.disconnect(false); // Odpojí predošlé pripojenie bez vypnutia rádia
+    delay(150);
 
-    WiFi.disconnect(true, true); // Odpojenie a vymazanie uložených sietí, aby sa predišlo automatickému pripájaniu k nesprávnej sieti
-    delay(500);
-
-    int n = WiFi.scanNetworks();
+    int n = WiFi.scanNetworks(false, false); // Synchrónny sken
     
-    if (n == 0) {
-        Serial.println("[WiFi] Nenašli sa žiadne siete!");
+    if (n <= 0) {
+        Serial.printf("[WiFi] Skenovanie zlyhalo alebo sa nenašli žiadne siete (n=%d).\n", n);
+        WiFi.scanDelete();
         return false;
+    }
+
+    Serial.printf("[WiFi] Skenovanie dokončené. Nájdených %d sietí:\n", n);
+    for (int i = 0; i < n; ++i) {
+        Serial.printf("   - %s (%d dBm, Ch:%d)\n", WiFi.SSID(i).c_str(), WiFi.RSSI(i), WiFi.channel(i));
     }
 
     int bestRSSI = -1000;
@@ -34,6 +39,8 @@ bool WifiService::connectBestNetwork() {
         }
     }
 
+    WiFi.scanDelete(); // Uvoľnenie pamäte po skene
+
     if (bestKnownIdx != -1) {
         const char* targetSSID = Config::KNOWN_WIFI_NETWORKS[bestKnownIdx].ssid;
         const char* targetPass = Config::KNOWN_WIFI_NETWORKS[bestKnownIdx].pass;
@@ -42,7 +49,7 @@ bool WifiService::connectBestNetwork() {
         WiFi.begin(targetSSID, targetPass);
 
         uint8_t attempts = 0;
-        while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+        while (WiFi.status() != WL_CONNECTED && attempts < 25) {
             delay(500);
             Serial.print(".");
             attempts++;
@@ -51,7 +58,7 @@ bool WifiService::connectBestNetwork() {
 
         if (WiFi.status() == WL_CONNECTED) {
             _connectedSSID = targetSSID;
-            Serial.printf("[WiFi] Úspešne pripojený! IP: %s\n", getIPAddress().c_str());
+            Serial.printf("[WiFi] Úspešne pripojený! IP: %s, RSSI: %d dBm\n", getIPAddress().c_str(), WiFi.RSSI());
             return true;
         }
     }

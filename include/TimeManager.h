@@ -26,6 +26,7 @@ public:
 
     // Formátuje lokálny čas vo formáte YYYY-MM-DD HH:mm <TZ> (napr. 2026-08-06 03:05 CEST)
     String getFormattedCustom(time_t utcTime = 0) const;
+    String getFormattedTime(time_t utcTime = 0) const; // HH:MM:SS
     String getFormattedISO(time_t utcTime) const;
     String getFormattedLocal(time_t utcTime) const;
 

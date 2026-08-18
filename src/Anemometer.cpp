@@ -79,7 +79,13 @@ void Anemometer::update() {
         // C = 2 * PI * r = 2 * PI * 0.195m = 1.2252m
         float circumference = 2.0f * M_PI * Config::ANEMOMETER_RADIUS_M;
         float rotationsPerSec = hz / (float)Config::ANEMOMETER_PULSES_PER_REV;
-        _currentWindSpeed = rotationsPerSec * circumference * Config::ANEMOMETER_CALIBRATION_FACTOR;
+        float calculatedSpeed = rotationsPerSec * circumference * Config::ANEMOMETER_CALIBRATION_FACTOR;
+
+        // Plauzibilný limit rýchlosti vetra (max 40.0 m/s = 144 km/h pre lokálne meteostanice)
+        if (calculatedSpeed > 40.0f) {
+            calculatedSpeed = 40.0f;
+        }
+        _currentWindSpeed = calculatedSpeed;
 
         if (_debug) {
             Serial.printf("[Anemometer Debug] Interval ms: %u, Pulzy v intervale: %u, Pulzy (okno): %u, Hz: %.2f, Speed: %.2f m/s, Pin %d stav: %d\n",

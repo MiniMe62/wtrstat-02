@@ -252,6 +252,155 @@
             color: var(--primary);
         }
 
+        /* Wind Rose Chart Section */
+        .chart-box {
+            margin-top: 28px;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .chart-controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin: 12px 0 16px 0;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 10px 14px;
+            border-radius: 14px;
+            border: 1px solid var(--card-border);
+        }
+
+        .select-custom {
+            background: #0f172a;
+            color: var(--text-main);
+            border: 1px solid var(--card-border);
+            padding: 6px 12px;
+            border-radius: 10px;
+            font-size: 0.82rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .select-custom:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .btn-period {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+            border: 1px solid var(--card-border);
+            padding: 6px 12px;
+            border-radius: 10px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-period:hover {
+            color: var(--text-main);
+            border-color: rgba(56, 189, 248, 0.4);
+        }
+
+        .btn-period.active {
+            background: rgba(56, 189, 248, 0.18);
+            color: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 0 12px var(--primary-glow);
+        }
+
+        .chart-container-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 440px;
+            margin: 16px auto;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chart-line-wrapper {
+            position: relative;
+            width: 100%;
+            height: 320px;
+            margin: 16px 0;
+        }
+
+        .btn-view {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+            border: 1px solid var(--card-border);
+            padding: 6px 12px;
+            border-radius: 10px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-view:hover {
+            color: var(--text-main);
+            border-color: rgba(251, 113, 133, 0.4);
+        }
+
+        .btn-view.active {
+            background: rgba(251, 113, 133, 0.18);
+            color: #fb7185;
+            border-color: #fb7185;
+            box-shadow: 0 0 12px rgba(251, 113, 133, 0.25);
+        }
+
+        .chart-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .stat-badge {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--card-border);
+            padding: 12px 14px;
+            border-radius: 14px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .stat-badge:hover {
+            border-color: rgba(56, 189, 248, 0.3);
+            background: rgba(56, 189, 248, 0.05);
+        }
+
+        .stat-badge-lbl {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }
+
+        .stat-badge-val {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
         footer {
             margin-top: 32px;
             text-align: center;
@@ -259,6 +408,8 @@
             color: var(--text-muted);
         }
     </style>
+    <!-- Chart.js CDN pre Veternú Ružicu -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
@@ -383,15 +534,748 @@
             </div>
         </div>
 
+        <!-- Temperature History Section -->
+        <div class="chart-box">
+            <div class="section-title">📈 História a Priebeh Teplôt</div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
+                Priebeh vnútornej a vonkajšej teploty s automatickým prispôsobením citlivosti škály.
+            </p>
+
+            <!-- Control Bar (View Mode & Timeframe Selector) -->
+            <div class="chart-controls">
+                <div class="btn-group">
+                    <button class="btn-view active" id="btnTempBoth" onclick="setTempView('both')">🌡️ Obe Teploty</button>
+                    <button class="btn-view" id="btnTempIn" onclick="setTempView('in')">🏠 Len Vnútorná (Tin)</button>
+                    <button class="btn-view" id="btnTempOut" onclick="setTempView('out')">🌲 Len Vonkajšia (Tout)</button>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn-period active" id="btnTempPeriodLive" onclick="setTempPeriod('live')">⚡ Živé</button>
+                    <button class="btn-period" id="btnTempPeriod24h" onclick="setTempPeriod('24h')">📅 24 Hodín (TS)</button>
+                    <button class="btn-period" id="btnTempPeriod3d" onclick="setTempPeriod('3d')">📆 3 Dni (TS)</button>
+                    <button class="btn-period" id="btnTempPeriod7d" onclick="setTempPeriod('7d')">🗓️ 7 Dní (TS)</button>
+                </div>
+            </div>
+
+            <div id="tempChartLoading" style="display: none; font-size: 0.82rem; color: var(--primary); text-align: center; margin: 8px 0; font-weight: 500;">
+                ⏳ Načítavam dáta teplôt z ThingSpeak API...
+            </div>
+            <div id="tempChartNotice" style="display: none; font-size: 0.82rem; color: #fbbf24; text-align: center; margin: 8px 0; background: rgba(251, 191, 36, 0.1); padding: 6px 12px; border-radius: 8px;">
+            </div>
+
+            <div class="chart-line-wrapper">
+                <canvas id="tempLineChart"></canvas>
+            </div>
+            
+            <div class="chart-stats-grid">
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Vnútorná (Min / Max)</span>
+                    <span class="stat-badge-val" id="statTempInMinMax" style="color: #fb7185;">-- / -- °C</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Vonkajšia (Min / Max)</span>
+                    <span class="stat-badge-val" id="statTempOutMinMax" style="color: #38bdf8;">-- / -- °C</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Rozdiel (Tout - Tin)</span>
+                    <span class="stat-badge-val" id="statTempDiff">-- °C</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Priemer (Tin / Tout)</span>
+                    <span class="stat-badge-val" id="statTempAvg">-- / -- °C</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wind Rose Section -->
+        <div class="chart-box">
+            <div class="section-title">🌪️ Veterná Ružica (Rozdelenie Smerov a Sily Vetra)</div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
+                Graf zobrazuje smerovú frekvenciu a intenzitu prúdenia vetra v 16 sektoroch.
+            </p>
+
+            <!-- Control Bar (Station & Timeframe Selector) -->
+            <div class="chart-controls">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Stanica:</span>
+                    <select id="selStation" class="select-custom" onchange="onStationOrPeriodChange()">
+                        <option value="3205571" selected>TEST (TestESP32Meteo)</option>
+                        <option value="1554841">GO85 (Gombos Vidiek)</option>
+                        <option value="287161">RU48 (MiniMe)</option>
+                    </select>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn-period active" id="btnLive" onclick="setPeriod('live')">⚡ Živé</button>
+                    <button class="btn-period" id="btn24h" onclick="setPeriod('24h')">📅 24 Hodín (TS)</button>
+                    <button class="btn-period" id="btn3d" onclick="setPeriod('3d')">📆 3 Dni (TS)</button>
+                    <button class="btn-period" id="btn7d" onclick="setPeriod('7d')">🗓️ 7 Dní (TS)</button>
+                </div>
+            </div>
+
+            <div id="chartLoading" style="display: none; font-size: 0.82rem; color: var(--primary); text-align: center; margin: 8px 0; font-weight: 500;">
+                ⏳ Načítavam dáta z ThingSpeak API...
+            </div>
+            <div id="chartNotice" style="display: none; font-size: 0.82rem; color: #fbbf24; text-align: center; margin: 8px 0; background: rgba(251, 191, 36, 0.1); padding: 6px 12px; border-radius: 8px;">
+            </div>
+
+            <div class="chart-container-wrapper">
+                <canvas id="windRoseChart"></canvas>
+            </div>
+            
+            <div class="chart-stats-grid">
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Dominantný Smer</span>
+                    <span class="stat-badge-val" id="statDomDir">--</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Max Rýchlosť</span>
+                    <span class="stat-badge-val" id="statMaxSpeed">-- m/s</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Priemerná Rýchlosť</span>
+                    <span class="stat-badge-val" id="statAvgSpeed">-- m/s</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Počet Meraní</span>
+                    <span class="stat-badge-val" id="statSamplesCount">0</span>
+                </div>
+            </div>
+        </div>
+
         <footer>
             wtrStat-02 • ESP32 Weather Station Firmware • Hosted on GitHub Pages
         </footer>
     </div>
 
     <script>
-        // TODO: V buducnosti napojit na MQTT (napr. cez paho-mqtt.js) alebo ThingSpeak API.
-        // Pre ThingSpeak napr: https://api.thingspeak.com/channels/CHANNEL_ID/feeds/last.json
+        // 16-smerové svetové strany
+        const ROSE_DIRS = ["S", "SSV", "SV", "VSV", "V", "VJV", "JV", "JJV", "J", "JJZ", "JZ", "ZJZ", "Z", "ZSZ", "SZ", "SSZ"];
         
+        // ThingSpeak konfigurácia pre stanice
+        const TS_CONFIG = {
+            "3205571": { key: "SXG8MK33NKFEA0UX", name: "TEST" },
+            "1554841": { key: "M4SJ7BSW2LR4WQVD", name: "GO85" },
+            "287161": { key: "WEO05BAL45Y3E52D", name: "RU48" }
+        };
+
+        // ================= TEPLOTNÝ GRAF =================
+        let tempViewMode = 'both'; // 'both' | 'in' | 'out'
+        let tempPeriod = 'live';   // 'live' | '24h' | '3d' | '7d'
+
+        let liveTempLabels = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:15'];
+        let liveTempIn = [22.50, 22.50, 22.75, 23.00, 23.00, 23.25, 23.50, 23.50, 23.75, 23.75, 24.00, 24.00];
+        let liveTempOut = [19.25, 20.50, 22.00, 23.75, 25.50, 27.00, 28.50, 29.50, 30.75, 31.50, 31.00, 30.50];
+
+        let activeTempLabels = [...liveTempLabels];
+        let activeTempIn = [...liveTempIn];
+        let activeTempOut = [...liveTempOut];
+
+        let tempLineChartInstance = null;
+
+        function initTempLineChart() {
+            const ctx = document.getElementById('tempLineChart').getContext('2d');
+
+            tempLineChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: activeTempLabels,
+                    datasets: [
+                        {
+                            label: 'Vnútorná (Tin)',
+                            data: activeTempIn,
+                            borderColor: '#fb7185',
+                            backgroundColor: 'rgba(251, 113, 133, 0.12)',
+                            fill: true,
+                            tension: 0.35,
+                            borderWidth: 2.2,
+                            pointRadius: 2,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: '#fb7185'
+                        },
+                        {
+                            label: 'Vonkajšia (Tout)',
+                            data: activeTempOut,
+                            borderColor: '#38bdf8',
+                            backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                            fill: true,
+                            tension: 0.35,
+                            borderWidth: 2.2,
+                            pointRadius: 2,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: '#38bdf8'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    animation: {
+                        duration: 500,
+                        easing: 'easeOutQuart'
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: { size: 10, family: 'Inter' },
+                                maxRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 10
+                            }
+                        },
+                        y: {
+                            grace: '5%',
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.06)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: { size: 11, family: 'Inter' },
+                                callback: function(val) {
+                                    return val.toFixed(1) + ' °C';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                boxWidth: 12,
+                                color: '#94a3b8',
+                                font: { size: 11, family: 'Inter', weight: '600' }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                            titleColor: '#38bdf8',
+                            titleFont: { weight: '700', size: 12 },
+                            bodyFont: { size: 12 },
+                            borderColor: 'rgba(56, 189, 248, 0.3)',
+                            borderWidth: 1,
+                            padding: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.dataset.label}: ${parseFloat(context.parsed.y).toFixed(2)} °C`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            updateTempStats();
+        }
+
+        function updateTempStats() {
+            const validIn = activeTempIn.filter(v => v !== null && !isNaN(v) && v > -50);
+            const validOut = activeTempOut.filter(v => v !== null && !isNaN(v) && v > -50);
+
+            if (validIn.length > 0) {
+                const minIn = Math.min(...validIn).toFixed(2);
+                const maxIn = Math.max(...validIn).toFixed(2);
+                const avgIn = (validIn.reduce((a, b) => a + b, 0) / validIn.length).toFixed(2);
+                document.getElementById('statTempInMinMax').innerText = `${minIn} / ${maxIn} °C`;
+                document.getElementById('statTempAvg').innerText = `${avgIn} / ${(validOut.length > 0 ? (validOut.reduce((a, b) => a + b, 0) / validOut.length).toFixed(2) : '--')} °C`;
+            } else {
+                document.getElementById('statTempInMinMax').innerText = `-- / -- °C`;
+            }
+
+            if (validOut.length > 0) {
+                const minOut = Math.min(...validOut).toFixed(2);
+                const maxOut = Math.max(...validOut).toFixed(2);
+                document.getElementById('statTempOutMinMax').innerText = `${minOut} / ${maxOut} °C`;
+            } else {
+                document.getElementById('statTempOutMinMax').innerText = `-- / -- °C`;
+            }
+
+            if (validIn.length > 0 && validOut.length > 0) {
+                const lastIn = validIn[validIn.length - 1];
+                const lastOut = validOut[validOut.length - 1];
+                const diff = (lastOut - lastIn);
+                document.getElementById('statTempDiff').innerText = `${diff >= 0 ? '+' : ''}${diff.toFixed(2)} °C`;
+            } else {
+                document.getElementById('statTempDiff').innerText = `-- °C`;
+            }
+        }
+
+        function setTempView(view) {
+            tempViewMode = view;
+
+            ['btnTempBoth', 'btnTempIn', 'btnTempOut'].forEach(id => {
+                document.getElementById(id).classList.remove('active');
+            });
+
+            if (view === 'both') document.getElementById('btnTempBoth').classList.add('active');
+            if (view === 'in') document.getElementById('btnTempIn').classList.add('active');
+            if (view === 'out') document.getElementById('btnTempOut').classList.add('active');
+
+            if (tempLineChartInstance) {
+                if (view === 'both') {
+                    tempLineChartInstance.setDatasetVisibility(0, true);
+                    tempLineChartInstance.setDatasetVisibility(1, true);
+                } else if (view === 'in') {
+                    tempLineChartInstance.setDatasetVisibility(0, true);
+                    tempLineChartInstance.setDatasetVisibility(1, false);
+                } else if (view === 'out') {
+                    tempLineChartInstance.setDatasetVisibility(0, false);
+                    tempLineChartInstance.setDatasetVisibility(1, true);
+                }
+                tempLineChartInstance.update();
+            }
+        }
+
+        function setTempPeriod(period) {
+            tempPeriod = period;
+
+            ['btnTempPeriodLive', 'btnTempPeriod24h', 'btnTempPeriod3d', 'btnTempPeriod7d'].forEach(id => {
+                document.getElementById(id).classList.remove('active');
+            });
+
+            if (period === 'live') document.getElementById('btnTempPeriodLive').classList.add('active');
+            if (period === '24h') document.getElementById('btnTempPeriod24h').classList.add('active');
+            if (period === '3d') document.getElementById('btnTempPeriod3d').classList.add('active');
+            if (period === '7d') document.getElementById('btnTempPeriod7d').classList.add('active');
+
+            document.getElementById('tempChartNotice').style.display = 'none';
+
+            if (period === 'live') {
+                document.getElementById('tempChartLoading').style.display = 'none';
+                activeTempLabels = [...liveTempLabels];
+                activeTempIn = [...liveTempIn];
+                activeTempOut = [...liveTempOut];
+                renderTempChart();
+            } else {
+                let resultsCount = 96; // 24h
+                if (period === '3d') resultsCount = 288;
+                if (period === '7d') resultsCount = 672;
+                fetchThingSpeakTempHistory(resultsCount);
+            }
+        }
+
+        function renderTempChart() {
+            if (!tempLineChartInstance) return;
+
+            tempLineChartInstance.data.labels = activeTempLabels;
+            tempLineChartInstance.data.datasets[0].data = activeTempIn;
+            tempLineChartInstance.data.datasets[1].data = activeTempOut;
+
+            tempLineChartInstance.update();
+            updateTempStats();
+        }
+
+        async function fetchThingSpeakTempHistory(resultsCount) {
+            const chanId = document.getElementById('selStation').value;
+            const cfg = TS_CONFIG[chanId];
+            if (!cfg) return;
+
+            const loadingEl = document.getElementById('tempChartLoading');
+            const noticeEl = document.getElementById('tempChartNotice');
+            loadingEl.style.display = 'block';
+            noticeEl.style.display = 'none';
+
+            const url = `https://api.thingspeak.com/channels/${chanId}/feeds.json?api_key=${cfg.key}&results=${resultsCount}`;
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error("Chyba odpovede z ThingSpeak API");
+                const data = await res.json();
+
+                if (!data.feeds || data.feeds.length === 0) {
+                    throw new Error("Žiadne záznamy.");
+                }
+
+                let labels = [];
+                let tinSeries = [];
+                let toutSeries = [];
+
+                for (const feed of data.feeds) {
+                    if (!feed.created_at) continue;
+                    
+                    const d = new Date(feed.created_at);
+                    let label = d.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
+                    if (resultsCount > 96) {
+                        label = `${d.getDate()}.${d.getMonth() + 1}. ` + label;
+                    }
+
+                    let tIn = (feed.field1 !== null && feed.field1 !== undefined && feed.field1 !== "") ? parseFloat(feed.field1) : null;
+                    let tOut = (feed.field2 !== null && feed.field2 !== undefined && feed.field2 !== "") ? parseFloat(feed.field2) : null;
+
+                    // Plauzibilný filter teplôt: -40.0°C až +60.0°C (odfiltrovať -127.0°C a +85.0°C)
+                    if (tIn !== null && (isNaN(tIn) || tIn < -40.0 || tIn > 60.0 || Math.abs(tIn - 85.0) < 0.1 || Math.abs(tIn + 127.0) < 0.1)) {
+                        tIn = null;
+                    }
+                    if (tOut !== null && (isNaN(tOut) || tOut < -40.0 || tOut > 60.0 || Math.abs(tOut - 85.0) < 0.1 || Math.abs(tOut + 127.0) < 0.1)) {
+                        tOut = null;
+                    }
+
+                    labels.push(label);
+                    tinSeries.push(tIn);
+                    toutSeries.push(tOut);
+                }
+
+                loadingEl.style.display = 'none';
+
+                if (labels.length === 0) {
+                    noticeEl.innerText = `ℹ️ Stanica ${cfg.name} nemá v zvolenom období záznamy o teplote.`;
+                    noticeEl.style.display = 'block';
+                    return;
+                }
+
+                activeTempLabels = labels;
+                activeTempIn = tinSeries;
+                activeTempOut = toutSeries;
+                renderTempChart();
+
+            } catch (err) {
+                loadingEl.style.display = 'none';
+                noticeEl.innerText = `⚠️ Nepodarilo sa načítať teploty: ${err.message}`;
+                noticeEl.style.display = 'block';
+            }
+        }
+
+        function addLiveTempSample(timeLabel, tIn, tOut) {
+            // Plauzibilný filter pre živé dáta
+            const validIn = (tIn !== null && !isNaN(tIn) && tIn >= -40.0 && tIn <= 60.0 && Math.abs(tIn - 85.0) > 0.1 && Math.abs(tIn + 127.0) > 0.1) ? tIn : null;
+            const validOut = (tOut !== null && !isNaN(tOut) && tOut >= -40.0 && tOut <= 60.0 && Math.abs(tOut - 85.0) > 0.1 && Math.abs(tOut + 127.0) > 0.1) ? tOut : null;
+
+            liveTempLabels.push(timeLabel);
+            liveTempIn.push(validIn);
+            liveTempOut.push(validOut);
+
+            if (liveTempLabels.length > 25) {
+                liveTempLabels.shift();
+                liveTempIn.shift();
+                liveTempOut.shift();
+            }
+
+            if (tempPeriod === 'live') {
+                activeTempLabels = [...liveTempLabels];
+                activeTempIn = [...liveTempIn];
+                activeTempOut = [...liveTempOut];
+                renderTempChart();
+            }
+        }
+
+        // ================= VETERNÁ RUŽICA =================
+        let currentPeriod = 'live'; // 'live' | '24h' | '3d' | '7d'
+
+        // Živá relácia (akumulátor)
+        let liveCounts = [4, 6, 8, 14, 18, 12, 6, 3, 2, 4, 7, 10, 15, 22, 19, 9];
+        let liveSpeedSums = [8.2, 14.5, 20.0, 39.2, 54.0, 31.2, 12.0, 5.4, 3.6, 7.8, 15.4, 26.0, 48.0, 79.2, 62.7, 23.4];
+        let liveTotalSamples = 169;
+        let liveMaxSpeed = 5.8;
+
+        // Aktuálne zobrazovaný dataset (pre graf)
+        let activeCounts = [...liveCounts];
+        let activeSpeedSums = [...liveSpeedSums];
+        let activeTotalSamples = liveTotalSamples;
+        let activeMaxSpeed = liveMaxSpeed;
+
+        let windRoseChartInstance = null;
+
+        function initWindRoseChart() {
+            const ctx = document.getElementById('windRoseChart').getContext('2d');
+            const percentages = activeCounts.map(c => ((c / activeTotalSamples) * 100).toFixed(1));
+            const maxCount = Math.max(...activeCounts, 1);
+            const domIndex = activeCounts.indexOf(Math.max(...activeCounts));
+
+            const bgColors = activeCounts.map((c, i) => {
+                if (i === domIndex && c > 0) return 'rgba(244, 63, 94, 0.75)';
+                const intensity = (c / maxCount) * 0.5 + 0.15;
+                return `rgba(56, 189, 248, ${intensity.toFixed(2)})`;
+            });
+
+            const borderColors = activeCounts.map((c, i) => {
+                return (i === domIndex && c > 0) ? '#f43f5e' : '#38bdf8';
+            });
+
+            windRoseChartInstance = new Chart(ctx, {
+                type: 'polarArea',
+                data: {
+                    labels: ROSE_DIRS,
+                    datasets: [{
+                        label: 'Zastúpenie smeru (%)',
+                        data: percentages,
+                        backgroundColor: bgColors,
+                        borderColor: borderColors,
+                        borderWidth: 1.5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 600,
+                        easing: 'easeOutQuart'
+                    },
+                    scales: {
+                        r: {
+                            startAngle: -11.25,
+                            angleLines: {
+                                color: 'rgba(255, 255, 255, 0.12)',
+                                lineWidth: 1
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.06)'
+                            },
+                            pointLabels: {
+                                display: true,
+                                centerPointLabels: true,
+                                font: {
+                                    size: 11,
+                                    weight: '600',
+                                    family: 'Inter'
+                                },
+                                color: '#94a3b8'
+                            },
+                            ticks: {
+                                display: false,
+                                backdropColor: 'transparent'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                            titleColor: '#38bdf8',
+                            titleFont: { weight: '700', size: 13 },
+                            bodyColor: '#f8fafc',
+                            bodyFont: { size: 12 },
+                            borderColor: 'rgba(56, 189, 248, 0.3)',
+                            borderWidth: 1,
+                            padding: 12,
+                            boxPadding: 6,
+                            callbacks: {
+                                title: function(items) {
+                                    return `Smer: ${items[0].label}`;
+                                },
+                                label: function(context) {
+                                    const idx = context.dataIndex;
+                                    const count = activeCounts[idx];
+                                    const avg = count > 0 ? (activeSpeedSums[idx] / count).toFixed(1) : '0.0';
+                                    return [
+                                        ` Výskyt: ${count} vzoriek (${context.parsed.r}%)`,
+                                        ` Priemerná rýchlosť: ${avg} m/s`
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            updateWindRoseStats();
+        }
+
+        function updateWindRoseStats() {
+            if (activeTotalSamples === 0) {
+                document.getElementById('statDomDir').innerText = "--";
+                document.getElementById('statMaxSpeed').innerText = "-- m/s";
+                document.getElementById('statAvgSpeed').innerText = "-- m/s";
+                document.getElementById('statSamplesCount').innerText = "0";
+                return;
+            }
+
+            const maxCount = Math.max(...activeCounts);
+            const domIndex = activeCounts.indexOf(maxCount);
+            const domDir = ROSE_DIRS[domIndex];
+            const domPct = ((maxCount / activeTotalSamples) * 100).toFixed(0);
+
+            const totalSpeedSum = activeSpeedSums.reduce((a, b) => a + b, 0);
+            const overallAvgSpeed = (totalSpeedSum / activeTotalSamples).toFixed(1);
+
+            document.getElementById('statDomDir').innerText = `${domDir} (${domPct}%)`;
+            document.getElementById('statMaxSpeed').innerText = `${activeMaxSpeed.toFixed(1)} m/s`;
+            document.getElementById('statAvgSpeed').innerText = `${overallAvgSpeed} m/s`;
+            document.getElementById('statSamplesCount').innerText = activeTotalSamples;
+        }
+
+        function renderActiveChart() {
+            if (!windRoseChartInstance) return;
+
+            const maxCount = Math.max(...activeCounts, 1);
+            const domIndex = activeCounts.indexOf(Math.max(...activeCounts));
+            const percentages = activeTotalSamples > 0 
+                ? activeCounts.map(c => ((c / activeTotalSamples) * 100).toFixed(1))
+                : new Array(16).fill(0);
+
+            windRoseChartInstance.data.datasets[0].data = percentages;
+            windRoseChartInstance.data.datasets[0].backgroundColor = activeCounts.map((c, i) => {
+                if (i === domIndex && c > 0) return 'rgba(244, 63, 94, 0.75)';
+                const intensity = (c / maxCount) * 0.5 + 0.15;
+                return `rgba(56, 189, 248, ${intensity.toFixed(2)})`;
+            });
+            windRoseChartInstance.data.datasets[0].borderColor = activeCounts.map((c, i) => {
+                return (i === domIndex && c > 0) ? '#f43f5e' : '#38bdf8';
+            });
+
+            windRoseChartInstance.update();
+            updateWindRoseStats();
+        }
+
+        function addWindRoseSample(dirDeg, speed) {
+            // Plauzibilný filter: smer 0..360, rýchlosť max 40 m/s
+            if (dirDeg === undefined || isNaN(dirDeg) || dirDeg < 0 || dirDeg > 360) return;
+            if (speed === undefined || isNaN(speed) || speed < 0 || speed > 40.0) return;
+
+            const idx = Math.round(((dirDeg % 360) / 22.5)) % 16;
+            
+            liveCounts[idx]++;
+            liveSpeedSums[idx] += speed;
+            liveTotalSamples++;
+            if (speed > liveMaxSpeed) {
+                liveMaxSpeed = speed;
+            }
+
+            if (currentPeriod === 'live') {
+                activeCounts = [...liveCounts];
+                activeSpeedSums = [...liveSpeedSums];
+                activeTotalSamples = liveTotalSamples;
+                activeMaxSpeed = liveMaxSpeed;
+                renderActiveChart();
+            }
+        }
+
+        function setPeriod(period) {
+            currentPeriod = period;
+            
+            ['btnLive', 'btn24h', 'btn3d', 'btn7d'].forEach(id => {
+                document.getElementById(id).classList.remove('active');
+            });
+            
+            if (period === 'live') document.getElementById('btnLive').classList.add('active');
+            if (period === '24h') document.getElementById('btn24h').classList.add('active');
+            if (period === '3d') document.getElementById('btn3d').classList.add('active');
+            if (period === '7d') document.getElementById('btn7d').classList.add('active');
+
+            document.getElementById('chartNotice').style.display = 'none';
+
+            if (period === 'live') {
+                document.getElementById('chartLoading').style.display = 'none';
+                activeCounts = [...liveCounts];
+                activeSpeedSums = [...liveSpeedSums];
+                activeTotalSamples = liveTotalSamples;
+                activeMaxSpeed = liveMaxSpeed;
+                renderActiveChart();
+            } else {
+                let resultsCount = 96; // 24h
+                if (period === '3d') resultsCount = 288;
+                if (period === '7d') resultsCount = 672;
+                fetchThingSpeakHistory(resultsCount);
+            }
+        }
+
+        function onStationOrPeriodChange() {
+            if (currentPeriod !== 'live') {
+                setPeriod(currentPeriod);
+            }
+        }
+
+        async function fetchThingSpeakHistory(resultsCount) {
+            const chanId = document.getElementById('selStation').value;
+            const cfg = TS_CONFIG[chanId];
+            if (!cfg) return;
+
+            const loadingEl = document.getElementById('chartLoading');
+            const noticeEl = document.getElementById('chartNotice');
+            loadingEl.style.display = 'block';
+            noticeEl.style.display = 'none';
+
+            const url = `https://api.thingspeak.com/channels/${chanId}/feeds.json?api_key=${cfg.key}&results=${resultsCount}`;
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error("Chyba odpovede z ThingSpeak API");
+                const data = await res.json();
+
+                if (!data.feeds || data.feeds.length === 0) {
+                    throw new Error("Žiadne záznamy.");
+                }
+
+                let counts = new Array(16).fill(0);
+                let speedSums = new Array(16).fill(0);
+                let total = 0;
+                let maxSpd = 0;
+                let validPoints = 0;
+
+                for (const feed of data.feeds) {
+                    if (feed.field5 === null || feed.field5 === undefined || feed.field5 === "") continue;
+                    const dirDeg = parseFloat(feed.field5);
+                    if (isNaN(dirDeg) || dirDeg < 0 || dirDeg > 360) continue;
+
+                    let speed = feed.field6 ? parseFloat(feed.field6) : 0.0;
+                    let speedMax = feed.field7 ? parseFloat(feed.field7) : speed;
+                    
+                    // Plauzibilný filter pre vietor: max 40 m/s priemer, max 45 m/s náraz
+                    if (isNaN(speed) || speed < 0 || speed > 40.0) continue;
+                    if (isNaN(speedMax) || speedMax < 0 || speedMax > 45.0) speedMax = speed;
+
+                    const idx = Math.round(((dirDeg % 360) / 22.5)) % 16;
+                    counts[idx]++;
+                    speedSums[idx] += speed;
+                    total++;
+                    validPoints++;
+
+                    if (speedMax > maxSpd) maxSpd = speedMax;
+                    else if (speed > maxSpd) maxSpd = speed;
+                }
+
+                loadingEl.style.display = 'none';
+
+                if (validPoints === 0) {
+                    noticeEl.innerText = `ℹ️ Stanica ${cfg.name} nemá v zvolenom období uložené dáta o smere vetra (Field 5).`;
+                    noticeEl.style.display = 'block';
+                    return;
+                }
+
+                activeCounts = counts;
+                activeSpeedSums = speedSums;
+                activeTotalSamples = total;
+                activeMaxSpeed = maxSpd;
+                renderActiveChart();
+
+            } catch (err) {
+                loadingEl.style.display = 'none';
+                noticeEl.innerText = `⚠️ Nepodarilo sa načítať ThingSpeak dáta: ${err.message}`;
+                noticeEl.style.display = 'block';
+            }
+        }
+
+                loadingEl.style.display = 'none';
+
+                if (validPoints === 0) {
+                    noticeEl.innerText = `ℹ️ Stanica ${cfg.name} nemá v zvolenom období uložené dáta o smere vetra (Field 5).`;
+                    noticeEl.style.display = 'block';
+                    return;
+                }
+
+                activeCounts = counts;
+                activeSpeedSums = speedSums;
+                activeTotalSamples = total;
+                activeMaxSpeed = maxSpd;
+                renderActiveChart();
+
+            } catch (err) {
+                loadingEl.style.display = 'none';
+                noticeEl.innerText = `⚠️ Nepodarilo sa načítať ThingSpeak dáta: ${err.message}`;
+                noticeEl.style.display = 'block';
+            }
+        }
+
         function updateUI(data) {
             const tempInFormatted = data.tempIn.toFixed(2);
             const tempOutFormatted = data.tempOut.toFixed(2);
@@ -427,7 +1311,6 @@
             try {
                 // Skúsime načítať posledné dáta z Adafruit IO (REST API bez potreby hesla - musí byť PUBLIC)
                 const username = "Minime62";
-                // Kedze mas nastavene ako public jednotlive feedy a nie celu skupinu, volame endpoint pre vsetky feedy
                 const url = `https://io.adafruit.com/api/v2/${username}/feeds`;
                 
                 const res = await fetch(url);
@@ -447,11 +1330,9 @@
                     timestamp: new Date().toLocaleString('sk-SK', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
                 };
 
-                // Zozbierame dáta podľa kľúčov (Adafruit ich vracia vo formáte skupina.feed)
-                let hasData = false;
+                // Zozbierame dáta podľa kľúčov
                 for (const feed of feeds) {
                     if (feed.last_value === null) continue;
-                    hasData = true;
                     const val = parseFloat(feed.last_value);
                     
                     switch(feed.key) {
@@ -460,9 +1341,9 @@
                         case 'meteo.wind-speed-avg': parsedData.windSpeed = val; break;
                         case 'meteo.wind-direction': 
                             parsedData.windDirDeg = val; 
-                            // Jednoduchá aproximácia názvu zo stupňov
-                            const dirs = ["S", "SV", "V", "JV", "J", "JZ", "Z", "SZ"];
-                            parsedData.windDirName = dirs[Math.round(((val % 360) / 45)) % 8];
+                            // Prepočet stupňov na 16-smerovú veternú ružicu (krok 22.5°)
+                            const dirs16 = ["S", "SSV", "SV", "VSV", "V", "VJV", "JV", "JJV", "J", "JJZ", "JZ", "ZJZ", "Z", "ZSZ", "SZ", "SSZ"];
+                            parsedData.windDirName = dirs16[Math.round(((val % 360) / 22.5)) % 16];
                             break;
                     }
                 }
@@ -475,15 +1356,32 @@
 
                 document.getElementById('connStatus').innerText = "ONLINE (Adafruit IO)";
                 updateUI(parsedData);
+
+                // Pridáme vzorku do Veternej Ružice
+                if (parsedData.windSpeed !== undefined && parsedData.windDirDeg !== undefined) {
+                    addWindRoseSample(parsedData.windDirDeg, parsedData.windSpeed);
+                }
+
+                // Pridáme vzorku do Teplotného Grafu
+                if (parsedData.tempIn !== undefined && parsedData.tempOut !== undefined) {
+                    const timeLabel = new Date().toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
+                    addLiveTempSample(timeLabel, parsedData.tempIn, parsedData.tempOut);
+                }
             } catch(e) {
                 console.log("Chyba:", e);
                 document.getElementById('connStatus').innerText = "OFFLINE / CHYBA";
             }
         }
         
+        // Inicializácia grafov pri štarte stránky
+        window.addEventListener('DOMContentLoaded', () => {
+            initTempLineChart();
+            initWindRoseChart();
+            fetchLive();
+        });
+
         // Obnovovanie každých 15 sekúnd (šetrí API limity)
         setInterval(fetchLive, 15000);
-        fetchLive();
     </script>
 </body>
 </html>

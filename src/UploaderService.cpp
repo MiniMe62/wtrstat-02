@@ -39,8 +39,19 @@ bool UploaderService::send15MinSnapshot(const WeatherSnapshot& snap, const TimeM
         return true;
     }
 
-    bool gsOk = sendToGoogleSheets(snap, timeMgr);
-    bool tsOk = sendToThingSpeak(snap, timeMgr);
+    bool gsOk = true;
+    if (Config::ENABLE_GOOGLE_SHEETS_UPLOAD) {
+        gsOk = sendToGoogleSheets(snap, timeMgr);
+    } else {
+        Serial.println("[GoogleSheets] Odosielanie je vypnuté v konfigurácii.");
+    }
+
+    bool tsOk = true;
+    if (Config::ENABLE_THINGSPEAK_UPLOAD) {
+        tsOk = sendToThingSpeak(snap, timeMgr);
+    } else {
+        Serial.println("[ThingSpeak] Odosielanie je vypnuté v konfigurácii (ochrana limitov).");
+    }
 
     return (gsOk && tsOk);
 }
@@ -50,7 +61,10 @@ bool UploaderService::send1MinSnapshot(const WeatherSnapshot& snap, const TimeMa
     
     if (Config::DRY_RUN_UPLOAD) return true;
 
-    return sendToAdafruitIO(snap, timeMgr);
+    if (Config::ENABLE_ADAFRUIT_IO_UPLOAD) {
+        return sendToAdafruitIO(snap, timeMgr);
+    }
+    return true;
 }
 
 bool UploaderService::sendToGoogleSheets(const WeatherSnapshot& snap, const TimeManager& timeMgr) {

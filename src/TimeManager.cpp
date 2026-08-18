@@ -56,6 +56,15 @@ String TimeManager::getFormattedCustom(time_t utcTime) const {
     return String(buf);
 }
 
+String TimeManager::getFormattedTime(time_t utcTime) const {
+    if (utcTime == 0) utcTime = now();
+    if (year(utcTime) < 2020) return String("Syncing...");
+    time_t localT = _tz.toLocal(utcTime);
+    char buf[12];
+    sprintf(buf, "%02d:%02d:%02d", hour(localT), minute(localT), second(localT));
+    return String(buf);
+}
+
 String TimeManager::getFormattedISO(time_t utcTime) const {
     // ThingSpeak ISO 8601: YYYY-MM-DDTHH:MM:00Z
     char buf[30];

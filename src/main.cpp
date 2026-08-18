@@ -13,6 +13,7 @@
 #include "UploaderService.h"
 #include "BleService.h"
 #include "WebServerManager.h"
+#include "DisplayManager.h"
 
 // Objektové inštancie modulov
 TempSensorManager tempMgr;
@@ -26,6 +27,7 @@ DataAggregator aggregator1Min;
 UploaderService uploader;
 BleService bleService;
 WebServerManager webServerMgr;
+DisplayManager displayMgr;
 
 Scheduler runner;
 
@@ -101,9 +103,16 @@ void cbPrintLiveWindDebug() {
     windVane.printLiveDebug();
 }
 
+void cbDisplayUpdate() {
+    if (Config::ENABLE_OLED) {
+        displayMgr.update(tempMgr, anemometer, windVane, wifiService, timeMgr);
+    }
+}
+
 // Definovanie úloh TaskScheduler
 Task tSensorRead(Config::SENSOR_READ_INTERVAL_MS, TASK_FOREVER, &cbSensorRead);
 Task tBleUpdate(Config::BLE_UPDATE_INTERVAL_MS, TASK_FOREVER, &cbBleUpdate);
+Task tDisplayUpdate(1000, TASK_FOREVER, &cbDisplayUpdate);
 Task tCheckUpload15Min(1000, TASK_FOREVER, &cbCheckUploadMark15Min);
 Task tCheckUpload1Min(1000, TASK_FOREVER, &cbCheckUploadMark1Min);
 Task tWindDebug(2000, TASK_FOREVER, &cbPrintWindDebug); // Debug WindVane každých 10 sekúnd (len pre vývoj, vypnúť v produkcii) 
@@ -115,6 +124,11 @@ void setup() {
     Serial.println("\n==========================================");
     Serial.println("   ESP32 WeatherStation wtrStat-02 START  ");
     Serial.println("==========================================");
+
+    // Inicializácia displeja (ak je povolený v Config.h)
+    if (Config::ENABLE_OLED) {
+        displayMgr.begin();
+    }
 
     // Inicializácia senzorických modulov
     tempMgr.begin();
@@ -140,6 +154,7 @@ void setup() {
     runner.init();
     runner.addTask(tSensorRead);
     runner.addTask(tBleUpdate);
+    runner.addTask(tDisplayUpdate);
     runner.addTask(tCheckUpload15Min);
     runner.addTask(tCheckUpload1Min);
     runner.addTask(tWindDebug); // Len pre vývoj, vypnúť v produkcii
@@ -147,6 +162,9 @@ void setup() {
 
     tSensorRead.enable();
     tBleUpdate.enable();
+    if (Config::ENABLE_OLED) {
+        tDisplayUpdate.enable();
+    }
     tCheckUpload15Min.enable();
     tCheckUpload1Min.enable();
     tWindDebug.enable(); // Len pre vývoj, vypnúť v produkcii
@@ -159,6 +177,11 @@ void setup() {
 void loop() {
     runner.execute();
     
+    // Kontrola dotyku a šetriča OLED displeja
+    if (Config::ENABLE_OLED) {
+        displayMgr.checkTouchAndTimeout();
+    }
+
     // Obsluha HTTP Web Servera (Live Dashboard)
     if (wifiService.isConnected()) {
         webServerMgr.handleClient();

@@ -51,4 +51,7 @@ namespace Pinout {
     // I2C zbernica (pre BME280 a 0.9" OLED displej)
     constexpr uint8_t I2C_SDA = 21;
     constexpr uint8_t I2C_SCL = 22;
+
+    // Kapacitný dotykový pin pre prebudenie OLED displeja (ESP32 Touch8 = GPIO 33)
+    constexpr uint8_t OLED_TOUCH_PIN = 33;
 }

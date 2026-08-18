@@ -89,24 +89,26 @@ grid on;
 4. Kliknite na **Save and Run**.
 5. V sekcii *Display Settings* (úplne dole) zaškrtnite **Add/Edit this visualization to a channel** a vyberte svoj meteo kanál. Graf sa tým pridá na vašu verejnú nástenku.
 
-## 8. Simulácia veterných senzorov pre vývoj
-Pre umožnenie testovania logiky stanice, spojenia na cloud či webového dashboardu bez nutnosti mať fyzicky pripojené veterné senzory na stole, je k dispozícii simulačný režim.
+## 8. Simulácia senzorov pre vývoj (Vane, Anemometer, Teplomery)
+Pre umožnenie testovania logiky stanice, spojenia na cloud či webového dashboardu bez nutnosti mať fyzicky pripojené veterné alebo teplotné senzory na stole, sú k dispozícii simulačné režimy:
 
 **Ako to funguje:**
-Keď je režim zapnutý, program ignoruje reálne hardvérové prerušenia z anemometra a napätia na ADC pre WindVane. Namiesto toho:
-* **Anemometer:** Každých 5 sekúnd vygeneruje náhodný počet impulzov (náhodný vetrík).
-* **WindVane (Smerovka):** Pri každom meraní vráti náhodný pomer reprezentujúcy jeden zo 16 nakalibrovaných smerov, takže sa smer vetra plynule mení.
+* **Anemometer (`SIMULATE_WIND_SENSORS`):** Každých 5 sekúnd vygeneruje náhodný počet impulzov (náhodný vetrík).
+* **WindVane (`SIMULATE_WIND_SENSORS`):** Pri každom meraní vráti náhodný pomer reprezentujúci jeden zo 16 nakalibrovaných smerov, takže sa smer vetra plynule mení.
+* **Dallas DS18B20 (`SIMULATE_TEMP_SENSORS`):** Simuluje 2 senzory (vnútorná teplota In ~22 °C a vonkajšia teplota Out ~18 °C) s realistickým náhodným kolísaním v krokoch po 0.25 °C (rozlíšenie 10-bit).
 
 **Ako zapnúť/vypnúť simuláciu:**
-V súbore `include/Config.h` na konci súboru upravte makro `SIMULATE_WIND_SENSORS`:
+V súbore `include/Config.h` na konci súboru upravte makrá:
 ```cpp
-// Zapne generovanie náhodných (fake) dát pre veterné senzory
+// Zapne generovanie náhodných dát pre senzory
 #define SIMULATE_WIND_SENSORS true 
+#define SIMULATE_TEMP_SENSORS true
 
-// Vypne simuláciu, kód začne okamžite čítať dáta z reálneho hardvéru (POUŽIŤ V PRODUKCII)
+// Vypne simuláciu, kód začne čítať dáta z reálneho hardvéru (POUŽIŤ V PRODUKCII)
 // #define SIMULATE_WIND_SENSORS false 
+// #define SIMULATE_TEMP_SENSORS false
 ```
-*Pozor: Nezabudnite prepnúť na `false`, keď stanicu umiestnite do exteriéru!*
+*Pozor: Nezabudnite prepnúť na `false`, keď stanicu umiestnite do exteriéru s reálnymi senzormi!*
 
 ## 9. Hardvérové odrušenie Anemometra (Hall Senzor)
 Ak sa na anemometri prejavujú anomálie (napr. nereálne rýchlosti vetra 100+ m/s) pri napájaní zo spínaných zdrojov (napr. USB nabíjačky) alebo cez dlhší kábel, ide s najväčšou pravdepodobnosťou o elektromagnetické rušenie (EMI). Keďže interný pull-up rezistor na ESP32 je príliš slabý (~45 kΩ), neudrží signál stabilný a na pin preniká napr. 50 Hz šum.
@@ -114,3 +116,9 @@ Ak sa na anemometri prejavujú anomálie (napr. nereálne rýchlosti vetra 100+ 
 **Odporúčané hardvérové úpravy (pre Dátový pin anemometra):**
 1. **Externý Pull-Up rezistor (Priorita):** Zapojiť rezistor **4.7 kΩ** (alebo v krajnom prípade aj 1 kΩ až 10 kΩ) medzi Dátový pin a napätie **3.3V**. Tento rezistor zabezpečí tvrdú logickú úroveň (HIGH) a eliminuje väčšinu vonkajšieho šumu.
 2. **Filtračný kondenzátor (Ideálne doplnenie):** Zapojiť malý keramický kondenzátor (napr. **100 nF**) priamo medzi Dátový pin a GND pre pohltenie rýchlych napäťových špičiek.
+
+## 10. Šetrič OLED displeja a dotykové prebúdzanie (Touch Wake-up)
+SSD1306 OLED displej trpí vypaľovaním pixelov (burn-in) pri 24/7 prevádzke. Preto je implementovaný automatický šetrič s kapacitným prebúdzaním:
+* **Dotykový pin (Touch8 = GPIO 33):** Na tento pin stačí pripojiť kúsok vodiča, skrutku na krabičke alebo plôšku z medi/hliníka.
+* **Časovač zhasnutia (`OLED_TIMEOUT_MS` v `Config.h`):** Po štarte alebo dotyku svieti displej 60 sekúnd (nastaviteľné), potom sa automaticky vypne cez hardvérový príkaz `SSD1306_DISPLAYOFF`.
+* **Minimálna spotreba & I2C úspora:** Po zhasnutí displeja sa zastaví aj zbytočné prekresľovanie cez I2C zbernicu. Dotyk okamžite obnoví zobrazenie (`SSD1306_DISPLAYON`).
