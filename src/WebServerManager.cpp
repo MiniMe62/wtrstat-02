@@ -800,10 +800,10 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 </div>
 
                 <div class="wind-speed-legend">
-                    <span class="legend-pill" style="border-color: #38bdf8;"><span class="dot" style="background:#38bdf8;"></span> &lt;1.5 m/s</span>
-                    <span class="legend-pill" style="border-color: #34d399;"><span class="dot" style="background:#34d399;"></span> 1.5–4</span>
-                    <span class="legend-pill" style="border-color: #facc15;"><span class="dot" style="background:#facc15;"></span> 4–8</span>
-                    <span class="legend-pill" style="border-color: #f43f5e;"><span class="dot" style="background:#f43f5e;"></span> &gt;8 m/s</span>
+                    <span class="legend-pill" style="border-color: #38bdf8;"><span class="dot" style="background:#38bdf8;"></span> 0.3–1.5 (Vánok)</span>
+                    <span class="legend-pill" style="border-color: #34d399;"><span class="dot" style="background:#34d399;"></span> 1.5–4.0 (Mierny)</span>
+                    <span class="legend-pill" style="border-color: #facc15;"><span class="dot" style="background:#facc15;"></span> 4.0–8.0 (Čerstvý)</span>
+                    <span class="legend-pill" style="border-color: #f43f5e;"><span class="dot" style="background:#f43f5e;"></span> &gt;8.0 m/s (Silný)</span>
                 </div>
             </div>
 
@@ -1348,9 +1348,9 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
         }
 
         function addWindRoseSample(dirDeg, speed) {
-            // Plauzibilný filter: smer 0..360, rýchlosť max 40 m/s
+            // Plauzibilný filter: smer 0..360, rýchlosť min 0.3 m/s (bezvetrie nezapočítavame), max 40 m/s
             if (dirDeg === undefined || isNaN(dirDeg) || dirDeg < 0 || dirDeg > 360) return;
-            if (speed === undefined || isNaN(speed) || speed < 0 || speed > 40.0) return;
+            if (speed === undefined || isNaN(speed) || speed < 0.3 || speed > 40.0) return;
 
             const idx = Math.round(((dirDeg % 360) / 22.5)) % 16;
             
@@ -1403,6 +1403,9 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
             if (currentPeriod !== 'live') {
                 setPeriod(currentPeriod);
             }
+            if (windTimelinePeriod !== 'live') {
+                setWindTimelinePeriod(windTimelinePeriod);
+            }
         }
 
         async function fetchThingSpeakHistory(resultsCount) {
@@ -1443,6 +1446,9 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     // Plauzibilný filter pre vietor: max 40 m/s priemer, max 45 m/s náraz
                     if (isNaN(speed) || speed < 0 || speed > 40.0) continue;
                     if (isNaN(speedMax) || speedMax < 0 || speedMax > 45.0) speedMax = speed;
+
+                    // Bezvetrie (< 0.3 m/s) podľa Beaufort 0 / WMO nezapočítavame do smerov
+                    if (speed < 0.3 && speedMax < 0.3) continue;
 
                     const idx = Math.round(((dirDeg % 360) / 22.5)) % 16;
                     counts[idx]++;
@@ -1742,6 +1748,10 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     if (isNaN(speed) || speed < 0 || speed > 40.0) continue;
                     if (isNaN(speedMax) || speedMax < 0 || speedMax > 45.0) speedMax = speed;
 
+                    // Filter bezvetria: Podľa WMO / Beaufort 0 je vietor < 0.3 m/s bezvetrie
+                    // Mechanická smerovka pri bezvetrí len visí, preto smer nekreslíme
+                    if (speed < 0.3 && speedMax < 0.3) continue;
+
                     const d = new Date(feed.created_at);
                     let label = d.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
                     if (resultsCount > 96) {
@@ -1757,7 +1767,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 loadingEl.style.display = 'none';
 
                 if (labels.length === 0) {
-                    noticeEl.innerText = `ℹ️ Stanica ${cfg.name} nemá v zvolenom období záznamy o smere vetra.`;
+                    noticeEl.innerText = `ℹ️ Stanica ${cfg.name} nemá v zvolenom období záznamy o smere vetra (alebo pretrvávalo bezvetrie < 0.3 m/s).`;
                     noticeEl.style.display = 'block';
                     return;
                 }
@@ -1778,6 +1788,8 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
         function addLiveWindTimelineSample(timeLabel, dirDeg, speed, maxSpeed) {
             if (dirDeg === null || isNaN(dirDeg) || dirDeg < 0 || dirDeg > 360) return;
             if (speed === null || isNaN(speed) || speed < 0 || speed > 40.0) return;
+            // Pri bezvetrí (< 0.3 m/s) smer nekreslíme
+            if (speed < 0.3 && (!maxSpeed || maxSpeed < 0.3)) return;
 
             liveTimelineLabels.push(timeLabel);
             liveTimelineDegs.push(dirDeg);
