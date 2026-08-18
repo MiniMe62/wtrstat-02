@@ -458,6 +458,33 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
             color: #0b1329;
         }
 
+        .wind-speed-legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .legend-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .legend-pill .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
         @media (max-width: 640px) {
             .container {
                 padding: 14px 10px;
@@ -747,6 +774,65 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 <div class="stat-badge">
                     <span class="stat-badge-lbl">Počet Meraní</span>
                     <span class="stat-badge-val" id="statSamplesCount">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wind Direction Timeline Section -->
+        <div class="chart-box">
+            <div class="chart-header-row">
+                <div class="section-title">🧭 Časový Vývoj Smeru Vetra</div>
+                <button class="btn-bubble-toggle active" id="btnToggleWindTimelineTooltip" onclick="toggleWindTimelineTooltip()" title="Zapnúť / Vypnúť bubliny">
+                    💬 Bubliny <span id="lblWindTimelineTooltip">ZAP</span>
+                </button>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
+                Chronologický priebeh stáčania smeru vetra v čase s farebným odlíšením rýchlosti (štýl SHMÚ).
+            </p>
+
+            <!-- Control Bar (Timeframe & Speed Legend) -->
+            <div class="chart-controls">
+                <div class="btn-group">
+                    <button class="btn-period active" id="btnWindTimelineLive" onclick="setWindTimelinePeriod('live')">⚡ Živé</button>
+                    <button class="btn-period" id="btnWindTimeline24h" onclick="setWindTimelinePeriod('24h')">📅 24h</button>
+                    <button class="btn-period" id="btnWindTimeline3d" onclick="setWindTimelinePeriod('3d')">📆 3d</button>
+                    <button class="btn-period" id="btnWindTimeline7d" onclick="setWindTimelinePeriod('7d')">🗓️ 7d</button>
+                </div>
+
+                <div class="wind-speed-legend">
+                    <span class="legend-pill" style="border-color: #38bdf8;"><span class="dot" style="background:#38bdf8;"></span> &lt;1.5 m/s</span>
+                    <span class="legend-pill" style="border-color: #34d399;"><span class="dot" style="background:#34d399;"></span> 1.5–4</span>
+                    <span class="legend-pill" style="border-color: #facc15;"><span class="dot" style="background:#facc15;"></span> 4–8</span>
+                    <span class="legend-pill" style="border-color: #f43f5e;"><span class="dot" style="background:#f43f5e;"></span> &gt;8 m/s</span>
+                </div>
+            </div>
+
+            <div id="windTimelineLoading" style="display: none; font-size: 0.82rem; color: var(--primary); text-align: center; margin: 8px 0; font-weight: 500;">
+                ⏳ Načítavam dáta smeru vetra z ThingSpeak API...
+            </div>
+            <div id="windTimelineNotice" style="display: none; font-size: 0.82rem; color: #fbbf24; text-align: center; margin: 8px 0; background: rgba(251, 191, 36, 0.1); padding: 6px 12px; border-radius: 8px;">
+            </div>
+
+            <div class="chart-line-wrapper">
+                <canvas id="windTimelineChart"></canvas>
+            </div>
+            
+            <div class="chart-stats-grid">
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Aktuálny Smer</span>
+                    <span class="stat-badge-val" id="statTimelineLastDir">--</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Priemerný Smer</span>
+                    <span class="stat-badge-val" id="statTimelineAvgDir">--</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Max Rýchlosť</span>
+                    <span class="stat-badge-val" id="statTimelineMaxSpeed">-- m/s</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Počet Záznamov</span>
+                    <span class="stat-badge-val" id="statTimelineSamples">0</span>
                 </div>
             </div>
         </div>
@@ -1389,6 +1475,331 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
             }
         }
 
+        // ================= ČASOVÝ VÝVOJ SMERU VETRA (TIMELINE) =================
+        let windTimelinePeriod = 'live'; // 'live' | '24h' | '3d' | '7d'
+        let windTimelineTooltipEnabled = true;
+
+        let liveTimelineLabels = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:15'];
+        let liveTimelineDegs = [225, 240, 260, 270, 290, 315, 330, 345, 0, 15, 45, 60];
+        let liveTimelineSpeeds = [1.2, 2.0, 3.5, 4.2, 5.0, 6.5, 5.8, 4.0, 2.5, 1.8, 1.0, 0.8];
+        let liveTimelineMaxSpeeds = [2.0, 3.2, 5.0, 6.0, 7.5, 9.2, 8.0, 5.5, 3.8, 2.6, 1.5, 1.2];
+
+        let activeTimelineLabels = [...liveTimelineLabels];
+        let activeTimelineDegs = [...liveTimelineDegs];
+        let activeTimelineSpeeds = [...liveTimelineSpeeds];
+        let activeTimelineMaxSpeeds = [...liveTimelineMaxSpeeds];
+
+        let windTimelineChartInstance = null;
+
+        const DIR_Y_TICKS = {
+            0: 'S (0°)',
+            45: 'SV (45°)',
+            90: 'V (90°)',
+            135: 'JV (135°)',
+            180: 'J (180°)',
+            225: 'JZ (225°)',
+            270: 'Z (270°)',
+            315: 'SZ (315°)',
+            360: 'S (360°)'
+        };
+
+        function getDirNameFromDeg(deg) {
+            if (deg === null || isNaN(deg)) return "--";
+            const idx = Math.round(((deg % 360) / 22.5)) % 16;
+            return ROSE_DIRS[idx];
+        }
+
+        function getSpeedColor(spd) {
+            if (spd < 1.5) return '#38bdf8'; // svetlomodrá (vánok)
+            if (spd < 4.0) return '#34d399'; // zelená (mierny)
+            if (spd < 8.0) return '#facc15'; // žltá (čerstvý)
+            return '#f43f5e';                // červená (silný)
+        }
+
+        function initWindTimelineChart() {
+            const ctx = document.getElementById('windTimelineChart').getContext('2d');
+            
+            windTimelineChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: activeTimelineLabels,
+                    datasets: [{
+                        label: 'Smer vetra (°)',
+                        data: activeTimelineDegs,
+                        showLine: true,
+                        borderWidth: 1.2,
+                        borderColor: 'rgba(255, 255, 255, 0.12)',
+                        borderDash: [3, 4],
+                        fill: false,
+                        tension: 0.1,
+                        pointBackgroundColor: function(context) {
+                            const idx = context.dataIndex;
+                            const spd = activeTimelineSpeeds[idx] !== undefined ? activeTimelineSpeeds[idx] : 0;
+                            return getSpeedColor(spd);
+                        },
+                        pointBorderColor: '#0f172a',
+                        pointBorderWidth: 1.5,
+                        pointRadius: function(context) {
+                            const idx = context.dataIndex;
+                            const spd = activeTimelineSpeeds[idx] !== undefined ? activeTimelineSpeeds[idx] : 0;
+                            return Math.max(4, Math.min(8, 4 + spd * 0.4));
+                        },
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 500,
+                        easing: 'easeOutQuart'
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: { size: 10, family: 'Inter' },
+                                maxRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 10
+                            }
+                        },
+                        y: {
+                            min: 0,
+                            max: 360,
+                            grid: {
+                                color: function(context) {
+                                    if (context.tick && context.tick.value % 90 === 0) {
+                                        return 'rgba(255, 255, 255, 0.14)';
+                                    }
+                                    return 'rgba(255, 255, 255, 0.04)';
+                                }
+                            },
+                            ticks: {
+                                stepSize: 45,
+                                color: '#94a3b8',
+                                font: { size: 11, family: 'Inter', weight: '500' },
+                                callback: function(value) {
+                                    return DIR_Y_TICKS[value] || (value + '°');
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: windTimelineTooltipEnabled,
+                            backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                            titleColor: '#38bdf8',
+                            titleFont: { weight: '700', size: 12 },
+                            bodyFont: { size: 12 },
+                            borderColor: 'rgba(56, 189, 248, 0.3)',
+                            borderWidth: 1,
+                            padding: 8,
+                            callbacks: {
+                                title: function(items) {
+                                    return `Čas: ${items[0].label}`;
+                                },
+                                label: function(context) {
+                                    const idx = context.dataIndex;
+                                    const deg = Math.round(context.parsed.y);
+                                    const dirName = getDirNameFromDeg(deg);
+                                    const spd = activeTimelineSpeeds[idx] !== undefined ? activeTimelineSpeeds[idx].toFixed(1) : '--';
+                                    const maxSpd = activeTimelineMaxSpeeds[idx] !== undefined ? activeTimelineMaxSpeeds[idx].toFixed(1) : spd;
+                                    return [
+                                        ` Smer: ${dirName} (${deg}°)`,
+                                        ` Rýchlosť: ${spd} m/s (Náraz: ${maxSpd} m/s)`
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            updateWindTimelineStats();
+        }
+
+        function updateWindTimelineStats() {
+            const validDegs = activeTimelineDegs.filter(d => d !== null && !isNaN(d));
+            if (validDegs.length === 0) {
+                document.getElementById('statTimelineLastDir').innerText = "--";
+                document.getElementById('statTimelineAvgDir').innerText = "--";
+                document.getElementById('statTimelineMaxSpeed').innerText = "-- m/s";
+                document.getElementById('statTimelineSamples').innerText = "0";
+                return;
+            }
+
+            const lastDeg = Math.round(validDegs[validDegs.length - 1]);
+            document.getElementById('statTimelineLastDir').innerText = `${getDirNameFromDeg(lastDeg)} (${lastDeg}°)`;
+
+            // Cirkulárny vektorový priemer smerov vetra
+            let sinSum = 0, cosSum = 0;
+            for (const d of validDegs) {
+                const rad = (d * Math.PI) / 180;
+                sinSum += Math.sin(rad);
+                cosSum += Math.cos(rad);
+            }
+            let avgRad = Math.atan2(sinSum, cosSum);
+            let avgDeg = Math.round((avgRad * 180) / Math.PI);
+            if (avgDeg < 0) avgDeg += 360;
+            document.getElementById('statTimelineAvgDir').innerText = `${getDirNameFromDeg(avgDeg)} (${avgDeg}°)`;
+
+            const maxSpd = activeTimelineMaxSpeeds.length > 0 ? Math.max(...activeTimelineMaxSpeeds, 0) : 0;
+            document.getElementById('statTimelineMaxSpeed').innerText = `${maxSpd.toFixed(1)} m/s`;
+            document.getElementById('statTimelineSamples').innerText = validDegs.length;
+        }
+
+        function renderWindTimelineChart() {
+            if (!windTimelineChartInstance) return;
+
+            windTimelineChartInstance.data.labels = activeTimelineLabels;
+            windTimelineChartInstance.data.datasets[0].data = activeTimelineDegs;
+            windTimelineChartInstance.update();
+            updateWindTimelineStats();
+        }
+
+        function toggleWindTimelineTooltip() {
+            windTimelineTooltipEnabled = !windTimelineTooltipEnabled;
+            const btn = document.getElementById('btnToggleWindTimelineTooltip');
+            const lbl = document.getElementById('lblWindTimelineTooltip');
+            if (btn) btn.classList.toggle('active', windTimelineTooltipEnabled);
+            if (lbl) lbl.innerText = windTimelineTooltipEnabled ? 'ZAP' : 'VYP';
+            if (windTimelineChartInstance) {
+                windTimelineChartInstance.options.plugins.tooltip.enabled = windTimelineTooltipEnabled;
+                windTimelineChartInstance.update('none');
+            }
+        }
+
+        function setWindTimelinePeriod(period) {
+            windTimelinePeriod = period;
+
+            ['btnWindTimelineLive', 'btnWindTimeline24h', 'btnWindTimeline3d', 'btnWindTimeline7d'].forEach(id => {
+                document.getElementById(id).classList.remove('active');
+            });
+
+            if (period === 'live') document.getElementById('btnWindTimelineLive').classList.add('active');
+            if (period === '24h') document.getElementById('btnWindTimeline24h').classList.add('active');
+            if (period === '3d') document.getElementById('btnWindTimeline3d').classList.add('active');
+            if (period === '7d') document.getElementById('btnWindTimeline7d').classList.add('active');
+
+            document.getElementById('windTimelineNotice').style.display = 'none';
+
+            if (period === 'live') {
+                document.getElementById('windTimelineLoading').style.display = 'none';
+                activeTimelineLabels = [...liveTimelineLabels];
+                activeTimelineDegs = [...liveTimelineDegs];
+                activeTimelineSpeeds = [...liveTimelineSpeeds];
+                activeTimelineMaxSpeeds = [...liveTimelineMaxSpeeds];
+                renderWindTimelineChart();
+            } else {
+                let resultsCount = 96; // 24h
+                if (period === '3d') resultsCount = 288;
+                if (period === '7d') resultsCount = 672;
+                fetchThingSpeakWindTimelineHistory(resultsCount);
+            }
+        }
+
+        async function fetchThingSpeakWindTimelineHistory(resultsCount) {
+            const chanId = document.getElementById('selStation').value;
+            const cfg = TS_CONFIG[chanId];
+            if (!cfg) return;
+
+            const loadingEl = document.getElementById('windTimelineLoading');
+            const noticeEl = document.getElementById('windTimelineNotice');
+            loadingEl.style.display = 'block';
+            noticeEl.style.display = 'none';
+
+            const url = `https://api.thingspeak.com/channels/${chanId}/feeds.json?api_key=${cfg.key}&results=${resultsCount}`;
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error("Chyba odpovede z ThingSpeak API");
+                const data = await res.json();
+
+                if (!data.feeds || data.feeds.length === 0) {
+                    throw new Error("Žiadne záznamy.");
+                }
+
+                let labels = [];
+                let degs = [];
+                let speeds = [];
+                let maxSpeeds = [];
+
+                for (const feed of data.feeds) {
+                    if (!feed.created_at || feed.field5 === null || feed.field5 === undefined || feed.field5 === "") continue;
+                    
+                    const dirDeg = parseFloat(feed.field5);
+                    if (isNaN(dirDeg) || dirDeg < 0 || dirDeg > 360) continue;
+
+                    let speed = feed.field6 ? parseFloat(feed.field6) : 0.0;
+                    let speedMax = feed.field7 ? parseFloat(feed.field7) : speed;
+                    if (isNaN(speed) || speed < 0 || speed > 40.0) continue;
+                    if (isNaN(speedMax) || speedMax < 0 || speedMax > 45.0) speedMax = speed;
+
+                    const d = new Date(feed.created_at);
+                    let label = d.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
+                    if (resultsCount > 96) {
+                        label = `${d.getDate()}.${d.getMonth() + 1}. ` + label;
+                    }
+
+                    labels.push(label);
+                    degs.push(dirDeg);
+                    speeds.push(speed);
+                    maxSpeeds.push(speedMax);
+                }
+
+                loadingEl.style.display = 'none';
+
+                if (labels.length === 0) {
+                    noticeEl.innerText = `ℹ️ Stanica ${cfg.name} nemá v zvolenom období záznamy o smere vetra.`;
+                    noticeEl.style.display = 'block';
+                    return;
+                }
+
+                activeTimelineLabels = labels;
+                activeTimelineDegs = degs;
+                activeTimelineSpeeds = speeds;
+                activeTimelineMaxSpeeds = maxSpeeds;
+                renderWindTimelineChart();
+
+            } catch (err) {
+                loadingEl.style.display = 'none';
+                noticeEl.innerText = `⚠️ Nepodarilo sa načítať smer vetra: ${err.message}`;
+                noticeEl.style.display = 'block';
+            }
+        }
+
+        function addLiveWindTimelineSample(timeLabel, dirDeg, speed, maxSpeed) {
+            if (dirDeg === null || isNaN(dirDeg) || dirDeg < 0 || dirDeg > 360) return;
+            if (speed === null || isNaN(speed) || speed < 0 || speed > 40.0) return;
+
+            liveTimelineLabels.push(timeLabel);
+            liveTimelineDegs.push(dirDeg);
+            liveTimelineSpeeds.push(speed);
+            liveTimelineMaxSpeeds.push(maxSpeed || speed);
+
+            if (liveTimelineLabels.length > 25) {
+                liveTimelineLabels.shift();
+                liveTimelineDegs.shift();
+                liveTimelineSpeeds.shift();
+                liveTimelineMaxSpeeds.shift();
+            }
+
+            if (windTimelinePeriod === 'live') {
+                activeTimelineLabels = [...liveTimelineLabels];
+                activeTimelineDegs = [...liveTimelineDegs];
+                activeTimelineSpeeds = [...liveTimelineSpeeds];
+                activeTimelineMaxSpeeds = [...liveTimelineMaxSpeeds];
+                renderWindTimelineChart();
+            }
+        }
+
         async function fetchLive() {
             try {
                 const res = await fetch('/api/live');
@@ -1427,6 +1838,12 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     addWindRoseSample(data.windDirDeg, data.windSpeed);
                 }
 
+                // Wind Direction Timeline Update
+                if (data.windSpeed !== undefined && data.windDirDeg !== undefined) {
+                    const timeLabel = new Date().toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    addLiveWindTimelineSample(timeLabel, data.windDirDeg, data.windSpeed, data.windSpeed);
+                }
+
                 // Temp Line Chart Update
                 if (data.tempIn !== undefined && data.tempOut !== undefined) {
                     const timeLabel = new Date().toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -1441,6 +1858,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
         window.addEventListener('DOMContentLoaded', () => {
             initTempLineChart();
             initWindRoseChart();
+            initWindTimelineChart();
             fetchLive();
         });
 
