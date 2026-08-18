@@ -551,9 +551,10 @@
 
                 <div class="btn-group">
                     <button class="btn-period active" id="btnTempPeriodLive" onclick="setTempPeriod('live')">⚡ Živé</button>
-                    <button class="btn-period" id="btnTempPeriod24h" onclick="setTempPeriod('24h')">📅 24 Hodín (TS)</button>
-                    <button class="btn-period" id="btnTempPeriod3d" onclick="setTempPeriod('3d')">📆 3 Dni (TS)</button>
-                    <button class="btn-period" id="btnTempPeriod7d" onclick="setTempPeriod('7d')">🗓️ 7 Dní (TS)</button>
+                    <button class="btn-period" id="btnTempPeriod24h" onclick="setTempPeriod('24h')">📅 24h</button>
+                    <button class="btn-period" id="btnTempPeriod3d" onclick="setTempPeriod('3d')">📆 3d</button>
+                    <button class="btn-period" id="btnTempPeriod7d" onclick="setTempPeriod('7d')">🗓️ 7d</button>
+                    <button class="btn-period active" id="btnToggleTempTooltip" onclick="toggleTempTooltip()" title="Zapnúť / Vypnúť bublinové hodnoty">💬 Bubliny</button>
                 </div>
             </div>
 
@@ -607,9 +608,10 @@
 
                 <div class="btn-group">
                     <button class="btn-period active" id="btnLive" onclick="setPeriod('live')">⚡ Živé</button>
-                    <button class="btn-period" id="btn24h" onclick="setPeriod('24h')">📅 24 Hodín (TS)</button>
-                    <button class="btn-period" id="btn3d" onclick="setPeriod('3d')">📆 3 Dni (TS)</button>
-                    <button class="btn-period" id="btn7d" onclick="setPeriod('7d')">🗓️ 7 Dní (TS)</button>
+                    <button class="btn-period" id="btn24h" onclick="setPeriod('24h')">📅 24h</button>
+                    <button class="btn-period" id="btn3d" onclick="setPeriod('3d')">📆 3d</button>
+                    <button class="btn-period" id="btn7d" onclick="setPeriod('7d')">🗓️ 7d</button>
+                    <button class="btn-period active" id="btnToggleRoseTooltip" onclick="toggleRoseTooltip()" title="Zapnúť / Vypnúť bublinové hodnoty">💬 Bubliny</button>
                 </div>
             </div>
 
@@ -832,6 +834,36 @@
                     tempLineChartInstance.setDatasetVisibility(1, true);
                 }
                 tempLineChartInstance.update();
+            }
+        }
+
+        let tempTooltipEnabled = true;
+        function toggleTempTooltip() {
+            tempTooltipEnabled = !tempTooltipEnabled;
+            const btn = document.getElementById('btnToggleTempTooltip');
+            if (tempTooltipEnabled) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+            if (tempLineChartInstance) {
+                tempLineChartInstance.options.plugins.tooltip.enabled = tempTooltipEnabled;
+                tempLineChartInstance.update('none');
+            }
+        }
+
+        let roseTooltipEnabled = true;
+        function toggleRoseTooltip() {
+            roseTooltipEnabled = !roseTooltipEnabled;
+            const btn = document.getElementById('btnToggleRoseTooltip');
+            if (roseTooltipEnabled) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+            if (windRoseChartInstance) {
+                windRoseChartInstance.options.plugins.tooltip.enabled = roseTooltipEnabled;
+                windRoseChartInstance.update('none');
             }
         }
 
