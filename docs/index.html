@@ -401,6 +401,101 @@
             color: var(--primary);
         }
 
+        .chart-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+
+        .chart-header-row .section-title {
+            margin-bottom: 0;
+        }
+
+        .btn-bubble-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-muted);
+            border: 1px solid var(--card-border);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-bubble-toggle:hover {
+            color: var(--text-main);
+            border-color: rgba(56, 189, 248, 0.4);
+        }
+
+        .btn-bubble-toggle.active {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .btn-bubble-toggle span {
+            font-weight: 700;
+            font-size: 0.72rem;
+            padding: 2px 7px;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.35);
+            color: #94a3b8;
+        }
+
+        .btn-bubble-toggle.active span {
+            background: var(--primary);
+            color: #0b1329;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 14px 10px;
+            }
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+            .chart-box {
+                padding: 16px 12px;
+                border-radius: 16px;
+            }
+            .chart-controls {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 10px 8px;
+                gap: 8px;
+            }
+            .btn-group {
+                width: 100%;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+            .btn-view, .btn-period {
+                flex: 1 1 auto;
+                padding: 6px 6px;
+                font-size: 0.74rem;
+                text-align: center;
+            }
+            .chart-stats-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            .stat-badge {
+                padding: 8px 10px;
+            }
+            .stat-badge-val {
+                font-size: 1rem;
+            }
+        }
+
         footer {
             margin-top: 32px;
             text-align: center;
@@ -536,7 +631,12 @@
 
         <!-- Temperature History Section -->
         <div class="chart-box">
-            <div class="section-title">📈 História a Priebeh Teplôt</div>
+            <div class="chart-header-row">
+                <div class="section-title">📈 História a Priebeh Teplôt</div>
+                <button class="btn-bubble-toggle active" id="btnToggleTempTooltip" onclick="toggleTempTooltip()" title="Zapnúť / Vypnúť bubliny">
+                    💬 Bubliny <span id="lblTempTooltip">ZAP</span>
+                </button>
+            </div>
             <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
                 Priebeh vnútornej a vonkajšej teploty s automatickým prispôsobením citlivosti škály.
             </p>
@@ -554,7 +654,6 @@
                     <button class="btn-period" id="btnTempPeriod24h" onclick="setTempPeriod('24h')">📅 24h</button>
                     <button class="btn-period" id="btnTempPeriod3d" onclick="setTempPeriod('3d')">📆 3d</button>
                     <button class="btn-period" id="btnTempPeriod7d" onclick="setTempPeriod('7d')">🗓️ 7d</button>
-                    <button class="btn-period active" id="btnToggleTempTooltip" onclick="toggleTempTooltip()" title="Zapnúť / Vypnúť bublinové hodnoty">💬 Bubliny</button>
                 </div>
             </div>
 
@@ -590,7 +689,12 @@
 
         <!-- Wind Rose Section -->
         <div class="chart-box">
-            <div class="section-title">🌪️ Veterná Ružica (Rozdelenie Smerov a Sily Vetra)</div>
+            <div class="chart-header-row">
+                <div class="section-title">🌪️ Veterná Ružica</div>
+                <button class="btn-bubble-toggle active" id="btnToggleRoseTooltip" onclick="toggleRoseTooltip()" title="Zapnúť / Vypnúť bubliny">
+                    💬 Bubliny <span id="lblRoseTooltip">ZAP</span>
+                </button>
+            </div>
             <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
                 Graf zobrazuje smerovú frekvenciu a intenzitu prúdenia vetra v 16 sektoroch.
             </p>
@@ -611,7 +715,6 @@
                     <button class="btn-period" id="btn24h" onclick="setPeriod('24h')">📅 24h</button>
                     <button class="btn-period" id="btn3d" onclick="setPeriod('3d')">📆 3d</button>
                     <button class="btn-period" id="btn7d" onclick="setPeriod('7d')">🗓️ 7d</button>
-                    <button class="btn-period active" id="btnToggleRoseTooltip" onclick="toggleRoseTooltip()" title="Zapnúť / Vypnúť bublinové hodnoty">💬 Bubliny</button>
                 </div>
             </div>
 
@@ -841,11 +944,9 @@
         function toggleTempTooltip() {
             tempTooltipEnabled = !tempTooltipEnabled;
             const btn = document.getElementById('btnToggleTempTooltip');
-            if (tempTooltipEnabled) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
+            const lbl = document.getElementById('lblTempTooltip');
+            if (btn) btn.classList.toggle('active', tempTooltipEnabled);
+            if (lbl) lbl.innerText = tempTooltipEnabled ? 'ZAP' : 'VYP';
             if (tempLineChartInstance) {
                 tempLineChartInstance.options.plugins.tooltip.enabled = tempTooltipEnabled;
                 tempLineChartInstance.update('none');
@@ -856,11 +957,9 @@
         function toggleRoseTooltip() {
             roseTooltipEnabled = !roseTooltipEnabled;
             const btn = document.getElementById('btnToggleRoseTooltip');
-            if (roseTooltipEnabled) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
+            const lbl = document.getElementById('lblRoseTooltip');
+            if (btn) btn.classList.toggle('active', roseTooltipEnabled);
+            if (lbl) lbl.innerText = roseTooltipEnabled ? 'ZAP' : 'VYP';
             if (windRoseChartInstance) {
                 windRoseChartInstance.options.plugins.tooltip.enabled = roseTooltipEnabled;
                 windRoseChartInstance.update('none');
