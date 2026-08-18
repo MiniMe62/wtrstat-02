@@ -117,12 +117,21 @@ void cbDisplayUpdate() {
     }
 }
 
+// 4. Periodická NTP synchronizácia (každú 1 hodinu mimo 15-min záveriek)
+void cbNtpPeriodicSync() {
+    if (wifiService.isConnected()) {
+        Serial.println("\n[NTP] Spúšťam plánovanú hodinovú resynchronizáciu času...");
+        timeMgr.syncNTP();
+    }
+}
+
 // Definovanie úloh TaskScheduler
 Task tSensorRead(Config::SENSOR_READ_INTERVAL_MS, TASK_FOREVER, &cbSensorRead);
 Task tBleUpdate(Config::BLE_UPDATE_INTERVAL_MS, TASK_FOREVER, &cbBleUpdate);
 Task tDisplayUpdate(1000, TASK_FOREVER, &cbDisplayUpdate);
 Task tCheckUpload15Min(1000, TASK_FOREVER, &cbCheckUploadMark15Min);
 Task tCheckUpload1Min(1000, TASK_FOREVER, &cbCheckUploadMark1Min);
+Task tNtpSync(3600000, TASK_FOREVER, &cbNtpPeriodicSync); // Každú 1 hodinu
 Task tWindDebug(2000, TASK_FOREVER, &cbPrintWindDebug); // Debug WindVane každých 10 sekúnd (len pre vývoj, vypnúť v produkcii) 
 Task tLiveWindDebug(2000, TASK_FOREVER, &cbPrintLiveWindDebug);
 
@@ -165,6 +174,7 @@ void setup() {
     runner.addTask(tDisplayUpdate);
     runner.addTask(tCheckUpload15Min);
     runner.addTask(tCheckUpload1Min);
+    runner.addTask(tNtpSync);
     runner.addTask(tWindDebug); // Len pre vývoj, vypnúť v produkcii
     runner.addTask(tLiveWindDebug); // Len pre vývoj, vypnúť v produkcii
 
@@ -175,6 +185,8 @@ void setup() {
     }
     tCheckUpload15Min.enable();
     tCheckUpload1Min.enable();
+    // Spustíme NTP synchronizáciu s posunom 7 minút po štarte (mimo 15-minútových záveriek)
+    tNtpSync.enableDelayed(7 * 60 * 1000);
     tWindDebug.enable(); // Len pre vývoj, vypnúť v produkcii
     tLiveWindDebug.enable(); // Len pre vývoj, vypnúť v produkcii
 
