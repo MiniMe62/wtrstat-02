@@ -144,8 +144,8 @@ void setup() {
 
     if (wifiOk) {
         timeMgr.syncNTP();
-        webServerMgr.begin(&tempMgr, &anemometer, &windVane, &wifiService, &timeMgr);
     }
+    webServerMgr.begin(&tempMgr, &anemometer, &windVane, &wifiService, &timeMgr);
 
     // Inicializácia BLE
     bleService.begin();
@@ -177,6 +177,9 @@ void setup() {
 void loop() {
     runner.execute();
     
+    // Automatické udržiavanie / obnovenie WiFi na pozadí
+    wifiService.ensureConnected();
+
     // Kontrola dotyku a šetriča OLED displeja
     if (Config::ENABLE_OLED) {
         displayMgr.checkTouchAndTimeout();

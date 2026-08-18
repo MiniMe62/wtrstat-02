@@ -1,69 +1,33 @@
 #include "WifiService.h"
 
-WifiService::WifiService() : _connectedSSID("") {
+WifiService::WifiService() : _connectedSSID(""), _lastReconnectAttempt(0) {
+    for (uint8_t k = 0; k < Config::KNOWN_WIFI_COUNT; k++) {
+        _wifiMulti.addAP(Config::KNOWN_WIFI_NETWORKS[k].ssid, Config::KNOWN_WIFI_NETWORKS[k].pass);
+    }
 }
 
 bool WifiService::connectBestNetwork() {
-    Serial.println("[WiFi] Skenujem dostupné WiFi siete...");
+    Serial.println("[WiFi] Inicializujem WiFi (WiFiMulti)...");
     WiFi.mode(WIFI_STA);
-    WiFi.disconnect(false); // Odpojí predošlé pripojenie bez vypnutia rádia
-    delay(150);
 
-    int n = WiFi.scanNetworks(false, false); // Synchrónny sken
-    
-    if (n <= 0) {
-        Serial.printf("[WiFi] Skenovanie zlyhalo alebo sa nenašli žiadne siete (n=%d).\n", n);
-        WiFi.scanDelete();
-        return false;
+    Serial.print("[WiFi] Hľadám a pripájam najsilnejšiu známu sieť");
+
+    // Skúsime sa pripojiť s max timeoutom 6 sekúnd (neprepadne do nekonečného visenia)
+    uint32_t startMs = millis();
+    while (_wifiMulti.run() != WL_CONNECTED && millis() - startMs < 6000) {
+        delay(350);
+        Serial.print(".");
+    }
+    Serial.println();
+
+    if (WiFi.status() == WL_CONNECTED) {
+        _connectedSSID = WiFi.SSID();
+        Serial.printf("[WiFi] Úspešne pripojený k sieti: %s (IP: %s, RSSI: %d dBm, Ch: %d)\n",
+                      _connectedSSID.c_str(), getIPAddress().c_str(), WiFi.RSSI(), WiFi.channel());
+        return true;
     }
 
-    Serial.printf("[WiFi] Skenovanie dokončené. Nájdených %d sietí:\n", n);
-    for (int i = 0; i < n; ++i) {
-        Serial.printf("   - %s (%d dBm, Ch:%d)\n", WiFi.SSID(i).c_str(), WiFi.RSSI(i), WiFi.channel(i));
-    }
-
-    int bestRSSI = -1000;
-    int bestKnownIdx = -1;
-
-    for (int i = 0; i < n; ++i) {
-        String scannedSSID = WiFi.SSID(i);
-        int rssi = WiFi.RSSI(i);
-
-        for (uint8_t k = 0; k < Config::KNOWN_WIFI_COUNT; k++) {
-            if (scannedSSID == String(Config::KNOWN_WIFI_NETWORKS[k].ssid)) {
-                if (rssi > bestRSSI) {
-                    bestRSSI = rssi;
-                    bestKnownIdx = k;
-                }
-            }
-        }
-    }
-
-    WiFi.scanDelete(); // Uvoľnenie pamäte po skene
-
-    if (bestKnownIdx != -1) {
-        const char* targetSSID = Config::KNOWN_WIFI_NETWORKS[bestKnownIdx].ssid;
-        const char* targetPass = Config::KNOWN_WIFI_NETWORKS[bestKnownIdx].pass;
-
-        Serial.printf("[WiFi] Pripájam k najsilnejšej známej sieti: %s (%d dBm)\n", targetSSID, bestRSSI);
-        WiFi.begin(targetSSID, targetPass);
-
-        uint8_t attempts = 0;
-        while (WiFi.status() != WL_CONNECTED && attempts < 25) {
-            delay(500);
-            Serial.print(".");
-            attempts++;
-        }
-        Serial.println();
-
-        if (WiFi.status() == WL_CONNECTED) {
-            _connectedSSID = targetSSID;
-            Serial.printf("[WiFi] Úspešne pripojený! IP: %s, RSSI: %d dBm\n", getIPAddress().c_str(), WiFi.RSSI());
-            return true;
-        }
-    }
-
-    Serial.println("[WiFi] Pripojenie zlyhalo (žiadna známa sieť neodpovedá).");
+    Serial.println("[WiFi] ⚠️ Žiadna známa WiFi sieť sa nepripojila v limite 6s. Stanica pokračuje v offline režime.");
     return false;
 }
 
@@ -73,6 +37,17 @@ bool WifiService::isConnected() const {
 
 void WifiService::ensureConnected() {
     if (!isConnected()) {
-        connectBestNetwork();
+        uint32_t now = millis();
+        // Skúšame reconnect max raz za 15 sekúnd, aby to neblokovalo slučku
+        if (now - _lastReconnectAttempt >= 15000) {
+            _lastReconnectAttempt = now;
+            Serial.println("[WiFi] Pokus o opätovné pripojenie na pozadí...");
+            if (_wifiMulti.run() == WL_CONNECTED) {
+                _connectedSSID = WiFi.SSID();
+                Serial.printf("[WiFi] Obnovené pripojenie k sieti: %s (IP: %s)\n",
+                              _connectedSSID.c_str(), getIPAddress().c_str());
+            }
+        }
     }
 }
+
