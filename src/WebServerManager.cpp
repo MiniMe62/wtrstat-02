@@ -1258,27 +1258,6 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
             }
         }
 
-                loadingEl.style.display = 'none';
-
-                if (validPoints === 0) {
-                    noticeEl.innerText = `ℹ️ Stanica ${cfg.name} nemá v zvolenom období uložené dáta o smere vetra (Field 5).`;
-                    noticeEl.style.display = 'block';
-                    return;
-                }
-
-                activeCounts = counts;
-                activeSpeedSums = speedSums;
-                activeTotalSamples = total;
-                activeMaxSpeed = maxSpd;
-                renderActiveChart();
-
-            } catch (err) {
-                loadingEl.style.display = 'none';
-                noticeEl.innerText = `⚠️ Nepodarilo sa načítať ThingSpeak dáta: ${err.message}`;
-                noticeEl.style.display = 'block';
-            }
-        }
-
         async function fetchLive() {
             try {
                 const res = await fetch('/api/live');
