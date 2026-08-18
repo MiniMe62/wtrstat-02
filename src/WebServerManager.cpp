@@ -801,7 +801,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
                 <div class="wind-speed-legend">
                     <span class="legend-pill" style="border-color: #38bdf8;"><span class="dot" style="background:#38bdf8;"></span> 0.3–1.5 (Vánok)</span>
-                    <span class="legend-pill" style="border-color: #34d399;"><span class="dot" style="background:#34d399;"></span> 1.5–4.0 (Mierny)</span>
+                    <span class="legend-pill" style="border-color: #22c55e;"><span class="dot" style="background:#22c55e;"></span> 1.5–4.0 (Mierny)</span>
                     <span class="legend-pill" style="border-color: #facc15;"><span class="dot" style="background:#facc15;"></span> 4.0–8.0 (Čerstvý)</span>
                     <span class="legend-pill" style="border-color: #f43f5e;"><span class="dot" style="background:#f43f5e;"></span> &gt;8.0 m/s (Silný)</span>
                 </div>
@@ -1517,7 +1517,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
         function getSpeedColor(spd) {
             if (spd < 1.5) return '#38bdf8'; // svetlomodrá (vánok)
-            if (spd < 4.0) return '#34d399'; // zelená (mierny)
+            if (spd < 4.0) return '#22c55e'; // jasná zelená (mierny)
             if (spd < 8.0) return '#facc15'; // žltá (čerstvý)
             return '#f43f5e';                // červená (silný)
         }
