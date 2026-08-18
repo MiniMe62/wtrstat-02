@@ -196,8 +196,9 @@ bool UploaderService::sendToAdafruitIO(const WeatherSnapshot& snap, const TimeMa
     http.addHeader("X-AIO-Key", Config::AIO_KEY);
     http.addHeader("Content-Type", "application/json");
 
-    // Vytvorenie JSON dokumentu pre Adafruit IO (čas pridelí Adafruit automaticky zo servera)
+    // Vytvorenie JSON dokumentu pre Adafruit IO s presným časom (:00)
     StaticJsonDocument<1024> doc;
+    doc["created_at"] = timeMgr.getFormattedISO(snap.timestamp);
     
     // Zoznam hodnôt pre jednotlivé feedy v skupine
     JsonArray feeds = doc.createNestedArray("feeds");

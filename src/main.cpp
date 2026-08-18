@@ -55,6 +55,10 @@ void cbCheckUploadMark15Min() {
     time_t currentMark = timeMgr.getMarkTime(Config::MEASURE_INTERVAL_MIN);
 
     if (currentMark != s_lastUploadedMark15Min && s_lastUploadedMark15Min != 0) {
+        // Počkáme na sekundu :02, aby servery (Adafruit/ThingSpeak) mali svoj čas zaručene po čase značky
+        if (second(timeMgr.getUtcTime()) < 2) {
+            return;
+        }
         s_lastUploadedMark15Min = currentMark;
         Serial.printf("\n[%s] [MARK] Zistený %d-minútový interval! Spúšťam GS/TS uploader...\n",
                       timeMgr.getFormattedCustom().c_str(), Config::MEASURE_INTERVAL_MIN);
@@ -80,6 +84,10 @@ void cbCheckUploadMark1Min() {
     time_t currentMark = timeMgr.getMarkTime(Config::MEASURE_INTERVAL_FAST_MIN);
 
     if (currentMark != s_lastUploadedMark1Min && s_lastUploadedMark1Min != 0) {
+        // Počkáme na sekundu :02, aby server Adafruit IO mal svoj čas zaručene po čase značky (:00)
+        if (second(timeMgr.getUtcTime()) < 2) {
+            return;
+        }
         s_lastUploadedMark1Min = currentMark;
         Serial.printf("\n[%s] [MARK] Zistený %d-minútový interval! Spúšťam AdafruitIO uploader...\n",
                       timeMgr.getFormattedCustom().c_str(), Config::MEASURE_INTERVAL_FAST_MIN);
