@@ -120,12 +120,31 @@ void cbNtpPeriodicSync() {
     }
 }
 
+// 4. Automatická kontrola aktualizácie z GitHubu (každých 24 hodín)
+void cbCloudOtaAutoCheck() {
+    if (!Config::AUTO_UPDATE_FROM_GITHUB || !wifiService.isConnected()) {
+        return;
+    }
+    Serial.println("\n[CloudOTA] Spúšťam plánovanú automatickú kontrolu verzie z GitHubu...");
+    OtaCheckResult res = cloudOta.checkVersion();
+    if (res.updateAvailable && !res.downloadUrl.isEmpty()) {
+        Serial.printf("[CloudOTA] Zistená nová verzia pre stanicu %s: v%s! Spúšťam automatickú inštaláciu...\n",
+                      Config::LOC_ID, res.newVersion.c_str());
+        cloudOta.performUpdate(res.downloadUrl);
+    } else if (res.error.length() > 0) {
+        Serial.printf("[CloudOTA] Kontrola verzie: %s\n", res.error.c_str());
+    } else {
+        Serial.printf("[CloudOTA] Stanica %s je aktuálna (v%s).\n", Config::LOC_ID, res.currentVersion.c_str());
+    }
+}
+
 // Definovanie úloh TaskScheduler
 Task tSensorRead(Config::SENSOR_READ_INTERVAL_MS, TASK_FOREVER, &cbSensorRead);
 Task tDisplayUpdate(1000, TASK_FOREVER, &cbDisplayUpdate);
 Task tCheckUpload15Min(1000, TASK_FOREVER, &cbCheckUploadMark15Min);
 Task tCheckUpload1Min(1000, TASK_FOREVER, &cbCheckUploadMark1Min);
 Task tNtpSync(3600000, TASK_FOREVER, &cbNtpPeriodicSync); // Každú 1 hodinu
+Task tCloudOtaAutoCheck(Config::AUTO_UPDATE_CHECK_INTERVAL_MS, TASK_FOREVER, &cbCloudOtaAutoCheck); // Každých 24 hodín
 Task tWindDebug(2000, TASK_FOREVER, &cbPrintWindDebug); // Debug WindVane každých 10 sekúnd (len pre vývoj, vypnúť v produkcii) 
 Task tLiveWindDebug(2000, TASK_FOREVER, &cbPrintLiveWindDebug);
 
@@ -165,6 +184,7 @@ void setup() {
     runner.addTask(tCheckUpload15Min);
     runner.addTask(tCheckUpload1Min);
     runner.addTask(tNtpSync);
+    runner.addTask(tCloudOtaAutoCheck);
     runner.addTask(tWindDebug); // Len pre vývoj, vypnúť v produkcii
     runner.addTask(tLiveWindDebug); // Len pre vývoj, vypnúť v produkcii
 
@@ -176,6 +196,10 @@ void setup() {
     tCheckUpload1Min.enable();
     // Spustíme NTP synchronizáciu s posunom 7 minút po štarte (mimo 15-minútových záveriek)
     tNtpSync.enableDelayed(7 * 60 * 1000);
+    // Spustíme prvú kontrolu GitHubu 10 minút po štarte, potom každých 24h
+    if (Config::AUTO_UPDATE_FROM_GITHUB) {
+        tCloudOtaAutoCheck.enableDelayed(10 * 60 * 1000);
+    }
     tWindDebug.enable(); // Len pre vývoj, vypnúť v produkcii
     tLiveWindDebug.enable(); // Len pre vývoj, vypnúť v produkcii
 

@@ -280,10 +280,16 @@ V koreňovom priečinku repozitára (alebo na GitHub Pages / Releases) sa nachá
 * Každé ESP32 pri overovaní porovnáva svoju internú verziu `Config::FIRMWARE_VERSION` s verziou uvedenou **výhradne pre svoje `Config::LOC_ID`** v súbore `version.json`.
 * Ak zmeníte verziu na `2.0.1` len v sekcii `"GO85"`, stanica na vidieku (`GO85`) okamžite rozpozná dostupný update, zatiaľ čo stanica v meste (`RU48`) zostane nedotknutá.
 
-#### 3. Postup spustenia z webového rozhrania:
+#### 3. Postup spustenia z webového rozhrania (Na vyžiadanie):
 1. Otvorte stránku `http://<IP_STANICE>/update`.
 2. Kliknite na **"🔎 Skontrolovať novú verziu na GitHube"**.
 3. ESP32 načíta `version.json` priamo z GitHubu a zobrazí poznámky k vydaniu.
 4. Kliknutím na **"🚀 Inštalovať z GitHubu"** si ESP32 samo stiahne `.bin` súbor, zapíše ho do záložnej OTA partície a reštartuje sa.
+
+#### 4. Plne autonómna aktualizácia na pozadí (Bez klikania):
+* **Konfigurácia (`Config.h`):** `AUTO_UPDATE_FROM_GITHUB = true`, interval `24 * 3600000` ms.
+* **Časovanie:** Úloha `tCloudOtaAutoCheck` v `TaskScheduler` sa prvýkrát spustí 10 minút po štarte stanice a následne každých 24 hodín (napr. v nočných hodinách).
+* **Priebeh:** ESP32 sa v tichosti spojí s GitHubom. Ak zistí novú verziu pre svoje `LOC_ID`, samo si stiahne firmvér, preflashuje sa a reštartuje. Vy iba nahráte nový súbor na GitHub a zmeníte verziu v `version.json`.
+
 
 
