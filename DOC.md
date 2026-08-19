@@ -287,9 +287,90 @@ V koreňovom priečinku repozitára (alebo na GitHub Pages / Releases) sa nachá
 4. Kliknutím na **"🚀 Inštalovať z GitHubu"** si ESP32 samo stiahne `.bin` súbor, zapíše ho do záložnej OTA partície a reštartuje sa.
 
 #### 4. Plne autonómna aktualizácia na pozadí (Bez klikania):
-* **Konfigurácia (`Config.h`):** `AUTO_UPDATE_FROM_GITHUB = true`, interval `24 * 3600000` ms.
-* **Časovanie:** Úloha `tCloudOtaAutoCheck` v `TaskScheduler` sa prvýkrát spustí 10 minút po štarte stanice a následne každých 24 hodín (napr. v nočných hodinách).
+* **Konfigurácia (`Config.h`):** `AUTO_UPDATE_FROM_GITHUB = true`.
+* **Časovanie:** Úloha v `TaskScheduler` sa prvýkrát spustí 2 minúty po štarte stanice (jednorazovo) a následne **každú noc presne o 00:10** zosynchronizovane cez NTP čas.
 * **Priebeh:** ESP32 sa v tichosti spojí s GitHubom. Ak zistí novú verziu pre svoje `LOC_ID`, samo si stiahne firmvér, preflashuje sa a reštartuje. Vy iba nahráte nový súbor na GitHub a zmeníte verziu v `version.json`.
+
+---
+
+## 16. Profily staníc a Oddelenie testovacích/ostrých dát
+
+V `include/Config.h` je zavedený systém profilov cez `#define CURRENT_SITE`:
+
+| Profil | `LOC_ID` | Účel | ThingSpeak Kanál | Google Sheets | Adafruit IO | Senzory |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `SITE_TEST_VIDIEK` | `TEST_VIDIEK` | Test na vidieku | Testovací (`3205571`) | ❌ Vypnuté | ✅ Zapnuté | Reálne senzory |
+| `SITE_TEST_MESTO` | `TEST_MESTO` | Vývoj na stole | Testovací (`3205571`) | ❌ Vypnuté | ❌ Vypnuté | Simulované |
+| `SITE_GO85` | `GO85` | **Ostrá produkcia vidiek** | Ostrý (`1554841`) | ✅ Zapnuté | ✅ Zapnuté | Reálne senzory |
+| `SITE_RU48` | `RU48` | **Ostrá produkcia mesto** | Ostrý (`287161`) | ✅ Zapnuté | ✅ Zapnuté | Reálne senzory |
+
+### Bezpečnostná poistka `DRY_RUN_UPLOAD`:
+- Ak je `DRY_RUN_UPLOAD = true`, dáta sa iba vypisujú do sériového monitora a **neodošlú sa do žiadneho cloudu** (ochrana pred poškodením databázy pri ladení).
+- Pre bežnú a ostrú prevádzku musí byť `DRY_RUN_UPLOAD = false`.
+
+---
+
+## 17. On-Demand OTA cez Adafruit IO a Nočná kontrola (00:10)
+
+Systém podporuje bleskový update na diaľku bez čakania na 24h periódu:
+
+### 1. Ako funguje On-Demand príkaz:
+1. V Adafruit IO dashboarde máte tlačidlo priradené k feedu **`meteo-cmd`**.
+2. Keď na mobile/PC prepnete tlačidlo na **`UPDATE`**:
+   - ESP32 pri najbližšom 1-minútovom spojení zachytí príkaz.
+   - **Reset:** ESP32 ihneď zapíše do feedu `meteo-cmd` hodnotu `IDLE` (ochrana pred zacyklením po reštarte).
+   - **Porovnanie verzie:** Stiahne `version.json`. Ak je verzia novšia, stiahne `.bin` a preflashuje sa. Ak je verzia rovnaká, operáciu bezpečne vynechá.
+   - **Rýchlosť:** Reakcia nastane maximálne do **60 sekúnd** od kliknutia.
+
+### 2. Ochrana kľúčov pred bezpečnostnými robotmi:
+- Kľúč Adafruit IO je v `include/Secrets.h` uložený bez prefixu `aio_` (iba 28 znakov).
+- Funkcia `Config::getAioKey()` ho za behu poskladá. Vďaka tomu roboty na GitHube kľúč v `.bin` súboroch nezachytia a kľúč sa **nezablokuje**.
+
+---
+
+## 18. Sprievodca prechodom na Ostrú Produkciu (Checklist)
+
+Akonáhle je hardvér na vidieku doladený a chcete stanicu prepnúť na plnú ostrú prevádzku:
+
+### Krok 1: Prepnutie profilu v kóde
+V súbore `include/Config.h` zmeňte:
+```cpp
+// Prepnúť z testovacieho na ostrý profil:
+#define CURRENT_SITE SITE_GO85   // pre ostrý vidiek (alebo SITE_RU48 pre ostré mesto)
+```
+
+### Krok 2: Konfigurácia ThingSpeak (Ostré kanály)
+Ostré kanály majú v `Config.h` preddefinované parametre:
+- **Vidiek (GO85):** Kanál `1554841`, Write API Key `M4SJ7BSW2LR4WQVD`
+- **Mesto (RU48):** Kanál `287161`, Write API Key `WEO05BAL45Y3E52D`
+- *Uistite sa, že na ThingSpeaku máte v kanáli aktivovaných všetkých 8 polí (Fields 1-8).*
+
+### Krok 3: Konfigurácia Adafruit IO (Ostrá prevádzka)
+1. V Adafruit IO overte existenciu skupiny **`meteo`** a feedov:
+   - `tempin`, `tempout`, `humidity`, `pressure`, `wind-speed-avg`, `wind-speed-max`, `wind-direction`, `light`, `rain`
+   - `meteo-cmd` (pre On-Demand OTA tlačidlo)
+2. Kľúč majte zadaný v `include/Secrets.h` (bez `aio_` prefixu).
+
+### Krok 4: Konfigurácia Google Sheets (Keď budete pripravený)
+V priečinku `google_script/Code.gs` je pripravený skript pre automatické ukladanie:
+1. Otvorte novú Google Tabuľku na [sheets.google.com](https://sheets.google.com).
+2. V menu kliknite na **Rozšírenia (Extensions)** $\rightarrow$ **Apps Script**.
+3. Skopírujte obsah súboru [`google_script/Code.gs`](file:///d:/SRC/Esp32/wtrStat-02/google_script/Code.gs) do editora.
+4. Kliknite na **Nasadiť (Deploy)** $\rightarrow$ **Nové nasadenie (New deployment)**:
+   - Typ: **Webová aplikácia (Web app)**
+   - Spustiť ako (Execute as): **Ja (Me)**
+   - Kto má prístup (Who has access): **Ktokoľvek (Anyone)**
+5. Skopírujte vygenerovanú **URL webovej aplikácie** a vložte ju do `include/Config.h`:
+   ```cpp
+   constexpr const char* GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/TVOJ_NOVY_ID/exec";
+   ```
+
+### Krok 5: Nasadenie cez OTA na diaľku
+1. Skompilujte projekt s profilom `SITE_GO85` (`pio run`).
+2. Skopírujte `.pio/build/esp32dev/firmware.bin` do `bin/firmware_GO85.bin`.
+3. V `version.json` zvýšte verziu pre `"GO85"`.
+4. Spravte `git push`.
+5. V Adafruit IO stlačte tlačidlo **`UPDATE`** $\rightarrow$ stanica na vidieku do 60s prejde z testovacieho profilu na ostrú produkciu.
 
 
 
