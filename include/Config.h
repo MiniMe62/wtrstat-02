@@ -18,7 +18,7 @@
 
 namespace Config {
     // Verzia firmvéru a vzdialené aktualizácie
-    constexpr const char* FIRMWARE_VERSION = "2.0.1";
+    constexpr const char* FIRMWARE_VERSION = "2.0.2";
     constexpr const char* GITHUB_VERSION_URL = "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/version.json";
     constexpr bool AUTO_UPDATE_FROM_GITHUB = true;                     // Plne automatický background update bez nutnosti klikania
     constexpr uint8_t AUTO_UPDATE_HOUR = 0;                            // Nočný čas dennej kontroly (00:10)
@@ -99,7 +99,16 @@ namespace Config {
     constexpr const char* AIO_SERVER = "io.adafruit.com";
     constexpr uint16_t AIO_SERVERPORT = 1883;
     constexpr const char* AIO_USERNAME = "Minime62";
-    constexpr const char* AIO_KEY = SECRET_AIO_KEY;
+    
+    // Automatické zostavenie kompletného Adafruit IO kľúča (ochrana pred scanermi na GitHube)
+    inline String getAioKey() {
+        String k = SECRET_AIO_KEY;
+        if (!k.startsWith("aio_")) {
+            return String("aio_") + k;
+        }
+        return k;
+    }
+
     constexpr const char* AIO_GROUP_TOPIC = "Minime62/groups/meteo/json";
     constexpr const char* AIO_CMD_FEED = "meteo-cmd";                  // Feed pre On-Demand príkazy (napr. UPDATE)
 

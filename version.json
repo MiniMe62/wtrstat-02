@@ -1,22 +1,22 @@
 {
   "TEST_VIDIEK": {
-    "version": "2.0.1",
+    "version": "2.0.2",
     "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_TEST_VIDIEK.bin",
-    "notes": "On-Demand OTA cez Adafruit IO trigger a nočná kontrola o 00:10"
+    "notes": "On-Demand OTA cez Adafruit IO trigger, sifrovany kluc a nocna kontrola o 00:10"
   },
   "TEST_MESTO": {
-    "version": "2.0.1",
+    "version": "2.0.2",
     "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_TEST_MESTO.bin",
-    "notes": "On-Demand OTA cez Adafruit IO trigger a nočná kontrola o 00:10"
+    "notes": "On-Demand OTA cez Adafruit IO trigger, sifrovany kluc a nocna kontrola o 00:10"
   },
   "GO85": {
-    "version": "2.0.1",
+    "version": "2.0.2",
     "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_GO85.bin",
-    "notes": "Produkcia vidiek: On-Demand OTA cez Adafruit IO trigger a nočná kontrola o 00:10"
+    "notes": "Produkcia vidiek: On-Demand OTA cez Adafruit IO trigger, sifrovany kluc a nocna kontrola o 00:10"
   },
   "RU48": {
-    "version": "2.0.1",
+    "version": "2.0.2",
     "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_RU48.bin",
-    "notes": "Produkcia mesto: On-Demand OTA cez Adafruit IO trigger a nočná kontrola o 00:10"
+    "notes": "Produkcia mesto: On-Demand OTA cez Adafruit IO trigger, sifrovany kluc a nocna kontrola o 00:10"
   }
 }

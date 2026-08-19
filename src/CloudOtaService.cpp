@@ -118,7 +118,7 @@ void CloudOtaService::resetAdafruitCommandFeed() {
     HTTPClient http;
     String url = String("https://io.adafruit.com/api/v2/") + Config::AIO_USERNAME + "/feeds/" + Config::AIO_CMD_FEED + "/data";
     if (http.begin(client, url)) {
-        http.addHeader("X-AIO-Key", Config::AIO_KEY);
+        http.addHeader("X-AIO-Key", Config::getAioKey());
         http.addHeader("Content-Type", "application/json");
         http.POST("{\"value\":\"IDLE\"}");
         http.end();
@@ -142,7 +142,7 @@ bool CloudOtaService::checkAdafruitCommand() {
         return false;
     }
 
-    http.addHeader("X-AIO-Key", Config::AIO_KEY);
+    http.addHeader("X-AIO-Key", Config::getAioKey());
     http.addHeader("Content-Type", "application/json");
 
     int httpCode = http.GET();

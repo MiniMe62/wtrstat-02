@@ -193,7 +193,7 @@ bool UploaderService::sendToAdafruitIO(const WeatherSnapshot& snap, const TimeMa
         return false;
     }
 
-    http.addHeader("X-AIO-Key", Config::AIO_KEY);
+    http.addHeader("X-AIO-Key", Config::getAioKey());
     http.addHeader("Content-Type", "application/json");
 
     // Vytvorenie JSON dokumentu pre Adafruit IO s presným časom (:00)
