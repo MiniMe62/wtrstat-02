@@ -147,9 +147,104 @@ Integrovaný webový dashboard (dostupný lokálne na IP adrese stanice a verejn
 * **Interaktívny Teplotný Graf:** Priebeh $T_{in}$ a $T_{out}$ s kubickým Bézierovým vyhladzovaním, prepínaním pohľadov (`Obe`, `Tin`, `Tout`) a automatickým prispôsobením citlivosti Y-osi.
 * **Prepínač bubliniek (`💬 Bubliny ZAP/VYP`):** Špeciálne tlačidlo v záhlaví každého grafu optimalizované pre smartfóny umožňujúce jedným ťuknutím skryť/zobraziť tooltip bublinu, aby na mobile neprekrývala krivky.
 
-## 15. Bezdrôtové Web OTA Aktualizácie (Dual-Bank Partície)
-Pre pohodlný update firmvéru bez nutnosti pripájať notebook cez USB kábel:
-* **Webové rozhranie:** Stránka dostupná na adrese `http://<IP_STANICE>/update` s responsívnym UI a vizuálnym indikátorom priebehu nahrávania.
-* **Dual-Bank Partície (`min_spiffs.csv`):** Flash pamäť ESP32 je rozdelená na 2 nezávislé sloty (`app0` a `app1`, každý ~1.92 MB). Pri nahrávaní beží stanica z jedného slotu a nový `.bin` sa zapisuje do druhého. Ak dôjde k prerušeniu spojenia, stanica bezpečne naštartuje z pôvodného slotu.
-* **Ako sa vrátiť k jednej veľkej ~3 MB partícii:** V súbore `platformio.ini` stačí prehodiť riadok na `board_build.partitions = huge_app.csv` a nahrať cez USB kábel.
+## 15. Pamäťová architektúra, Partície a Web OTA Aktualizácie
+
+Táto sekcia podrobne popisuje rozdelenie flash pamäte ESP32, optimalizácie pre zmenšenie firmvéru, princíp bezpečného Dual-Bank OTA a kompletný návod na aktualizáciu firmvéru v teréne (z mobilu cez USB OTG aj bezdrôtovo cez web).
+
+---
+
+### 15.1 Rozdelenie Flash pamäte ESP32 (4 MB) a Partičné schémy
+
+Čip ESP32 (ESP32 Dev Module) má integrovanú flash pamäť s celkovou veľkosťou **4 MB (4 194 304 B)**. Pamäť nie je jednoliaty blok, ale je riadená tzv. **partičnou tabuľkou (Partition Table)**:
+
+```
++-----------------------------------------------------------------------------------+
+| Bootloader | Partition Table | NVS (Nastavenia) | OTA Data |   App0   |   App1    |
+|   (32 KB)  |     (4 KB)      |     (20 KB)      |  (8 KB)  | (1.92MB) | (1.92MB)  |
++-----------------------------------------------------------------------------------+
+```
+
+#### Porovnanie partičných schém v `platformio.ini`:
+
+| Parameter | Schéma `huge_app.csv` (Pôvodná) | Schéma `min_spiffs.csv` (Aktuálna / OTA) |
+| :--- | :--- | :--- |
+| **Počet App slotov** | **1 slot** (iba `app0`) | **2 nezávislé sloty** (`app0` a `app1`) |
+| **Kapacita pre kód** | **3.14 MB (3 276 800 B)** | **2× 1.92 MB (1 966 080 B)** |
+| **Podpora bezdrôtového OTA** | ❌ **Nie** (nie je kam stiahnuť nový kód) | ✅ **Áno** (plne bezpečný duálny update) |
+| **SPIFFS súborový systém** | Žiadny | Minimálny (192 KB) |
+| **NVS (Ukladanie dát)** | 20 KB | 20 KB |
+
+---
+
+### 15.2 Pamäťová optimalizácia (Odstránenie BLE)
+
+* **Problém s veľkosťou:** Pôvodný firmvér s integrovanou knižnicou `ESP32 BLE Arduino` (oficiálny Bluedroid stack) zaberal až **1.75 MB (1 747 741 B)**. V schéme `min_spiffs.csv` s 1.92 MB slotom to predstavovalo vyťaženie až 89 % a nechávalo rezervu len ~170 KB.
+* **Riešenie:** Keďže stanica funguje primárne cez WiFi (lokálny WebServer, ThingSpeak, Adafruit IO, Google Sheets) a konfiguráciu parametrov je jednoduchšie realizovať cez webové rozhranie než cez špeciálnu BLE aplikáciu, BLE služba bola z hlavnej vetvy odstránená.
+* **Výsledok:**
+  - Veľkosť firmvéru klesla na **966 KB (966 421 B)**.
+  - Využitie 1.92 MB slotu je **iba 49.2 %**.
+  - **Rezerva:** K dispozícii zostáva **takmer 1 MB voľného miesta** (vyše 50 % kapacity slotu) pre akékoľvek budúce rozširovanie, nové grafy, výpočty či senzory.
+* **Bezpečná záloha pôvodného BLE kódu:** Pôvodný kód so všetkými BLE funkciami je archivovaný v samostatnej git vetve:
+  `git checkout backup/develop-with-ble`
+
+---
+
+### 15.3 Ako funguje bezpečný Dual-Bank OTA mechanizmus
+
+ESP32 využíva **Dual-Bank (dvoj-slotovú) architektúru**, ktorá vylučuje znefunkčnenie ("bricknutie") zariadenia:
+
+1. **Beh z aktívneho slotu:** Ak stanica momentálne beží napr. zo slotu `app0`, webový server prijíma nový súbor `firmware.bin` a zapisuje ho výhradne do neaktívneho slotu `app1`.
+2. **Integrita a kontrolný súčet:** Počas nahrávania ESP32 priebežne overuje CRC/MD5 hash dát.
+3. **Prepnutie ukazovateľa (`otadata`):** Až po úspešnom prijatí 100 % súboru a validácii hlavičky zapíše zavádzač do partície `otadata` informáciu, že pri najbližšom štarte má bootloader spustiť slot `app1`.
+4. **Ochrana pri zlyhaní spojenia:** Ak počas nahrávania vypadne WiFi, vybije sa telefón alebo je súbor poškodený, zápis do `otadata` sa **nevykoná**. Stanica sa reštartuje a bezpečne naštartuje pôvodný, stále plne funkčný firmvér zo slotu `app0`.
+
+---
+
+### 15.4 Návod na aktualizáciu v teréne (z mobilu)
+
+Pre aktualizáciu stanice na vidieku nepotrebujete notebook s vývojovým prostredím.
+
+#### Scenár A: Prvotná inštalácia z mobilu cez USB OTG kábel
+*(Nutné vykonať len raz pri prechode z `huge_app` na `min_spiffs` partície, alebo pri obnove po havárii)*
+
+1. **Príprava súboru:** Na PC skompilujte projekt (`pio run`). Vytvorený binárny súbor nájdete v:
+   `.pio/build/esp32dev/firmware.bin`
+   Tento súbor si pošlite do mobilu (Google Drive, e-mail, lokálne stiahnutie).
+2. **Prepojenie:** Prepojte ESP32 s Android telefónom pomocou USB-C / micro-USB OTG kábla/redukcie.
+3. **Flashovacia aplikácia v mobile:**
+   * **Možnosť 1 (Android Appka):** Nainštalujte z Google Play napríklad **ESP32 Loader** alebo **DroidProg**. V aplikácii povoľte USB prístup, vyberte súbor `firmware.bin`, zvoľte prenosovú rýchlosť `115200` alebo `921600` a kliknite na **Flash**.
+   * **Možnosť 2 (Web Serial v prehliadači Chrome pre Android):** Otvorte webový nástroj [ESP Web Tools](https://esphome.github.io/esp-web-tools/) priamo v prehliadači Chrome, kliknite na *Connect*, vyberte pripojený USB port a nahrajte `firmware.bin`.
+
+---
+
+#### Scenár B: Pravidelné bezdrôtové aktualizácie cez Web OTA (Bez káblov)
+*(Využiteľné pre všetky ďalšie updaty po nahraní OTA firmvéru)*
+
+1. **Príprava:** Súbor `firmware.bin` máte stiahnutý v mobile.
+2. **Pripojenie na sieť:** Pripojte mobil k rovnakej WiFi sieti (alebo mobilnému hotspotu), na ktorú je pripojená meteostanica.
+3. **Otvorenie OTA rozhrania:**
+   * V prehliadači na mobile otvorte adresu:
+     `http://<IP_ADRESA_ESP32>/update`
+     *(Alebo kliknite na odkaz `⚙️ OTA Update` v pätičke hlavného dashboardu).*
+4. **Nahratie firmvéru:**
+   * Kliknite na rámček **"📁 Kliknite pre výber súboru .bin"** a vyberte súbor `firmware.bin` z úložiska mobilu.
+   * Kliknite na tlačidlo **"🚀 Spustiť aktualizáciu"**.
+   * Na obrazovke sa zobrazí modrý animovaný ukazovateľ priebehu s percentami (prenos trvá približne 5 až 10 sekúnd).
+5. **Automatický reštart:**
+   * Po dokončení sa zobrazí zelené potvrdenie *"Úspešne nahraté!"*.
+   * ESP32 sa automaticky reštartuje s novým firmvérom a prehliadač vás po 12 sekundách automaticky presmeruje späť na hlavný dashboard `/`.
+
+---
+
+### 15.5 Ako sa kedykoľvek vrátiť k jednej veľkej partícii (`huge_app.csv`)
+
+Ak by ste v budúcnosti potrebovali celú pamäť (~3.14 MB) pre jednu obrovskú aplikáciu bez podpory OTA:
+1. V súbore `platformio.ini` upravte konfiguráciu:
+   ```ini
+   ; Prepnite komentár na huge_app.csv:
+   ; board_build.partitions = min_spiffs.csv
+   board_build.partitions = huge_app.csv
+   ```
+2. Pripojte ESP32 cez USB kábel a nahrajte firmvér štandardným príkazom `pio run --target upload`.
+
 
