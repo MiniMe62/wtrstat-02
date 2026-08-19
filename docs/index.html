@@ -651,6 +651,12 @@
                             <td>sekund</td>
                             <td>System millis()</td>
                         </tr>
+                        <tr>
+                            <td>Zdroj živých dát</td>
+                            <td class="val-highlight" id="tblDataSource">--</td>
+                            <td>Cloud API</td>
+                            <td id="tblDataSourceDetail">Automatický výber (Adafruit IO / ThingSpeak)</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -1403,6 +1409,10 @@
             if (windTimelinePeriod !== 'live') {
                 setWindTimelinePeriod(windTimelinePeriod);
             }
+            if (tempPeriod !== 'live') {
+                setTempPeriod(tempPeriod);
+            }
+            fetchLive();
         }
 
         async function fetchThingSpeakHistory(resultsCount) {
@@ -1809,106 +1819,233 @@
             }
         }
 
+        function formatVal(val, decimals) {
+            if (val === null || val === undefined || isNaN(val)) return '--';
+            return Number(val).toFixed(decimals);
+        }
+
         function updateUI(data) {
-            const tempInFormatted = data.tempIn.toFixed(2);
-            const tempOutFormatted = data.tempOut.toFixed(2);
-            const speedFormatted = data.windSpeed.toFixed(1);
-            const degFormatted = data.windDirDeg.toFixed(0) + '°';
+            const tempInFormatted = formatVal(data.tempIn, 2);
+            const tempOutFormatted = formatVal(data.tempOut, 2);
+            const speedFormatted = formatVal(data.windSpeed, 1);
+            const degFormatted = (data.windDirDeg !== null && data.windDirDeg !== undefined && !isNaN(data.windDirDeg))
+                ? Math.round(data.windDirDeg) + '°'
+                : '--°';
+            const dirName = data.windDirName || '--';
 
             // Cards Update
             document.getElementById('timestamp').innerText = data.timestamp || new Date().toLocaleTimeString();
-            document.getElementById('tempIn').innerHTML = tempInFormatted + ' <span class="unit">°C</span>';
-            document.getElementById('tempOut').innerHTML = tempOutFormatted + ' <span class="unit">°C</span>';
-            document.getElementById('windSpeed').innerHTML = speedFormatted + ' <span class="unit">m/s</span>';
+            document.getElementById('tempIn').innerHTML = (tempInFormatted !== '--' ? tempInFormatted : '--') + ' <span class="unit">°C</span>';
+            document.getElementById('tempOut').innerHTML = (tempOutFormatted !== '--' ? tempOutFormatted : '--') + ' <span class="unit">°C</span>';
+            document.getElementById('windSpeed').innerHTML = (speedFormatted !== '--' ? speedFormatted : '--') + ' <span class="unit">m/s</span>';
             
-            document.getElementById('windDirNameBadge').innerText = data.windDirName;
-            document.getElementById('windDirNameText').innerText = data.windDirName;
+            document.getElementById('windDirNameBadge').innerText = dirName;
+            document.getElementById('windDirNameText').innerText = dirName;
             document.getElementById('windDirDeg').innerText = degFormatted;
-            document.getElementById('arrow').style.transform = `rotate(${data.windDirDeg}deg)`;
+            if (data.windDirDeg !== null && data.windDirDeg !== undefined && !isNaN(data.windDirDeg)) {
+                document.getElementById('arrow').style.transform = `rotate(${data.windDirDeg}deg)`;
+            }
 
             // Table Update
             document.getElementById('tblTempIn').innerText = tempInFormatted;
             document.getElementById('tblTempOut').innerText = tempOutFormatted;
             document.getElementById('tblWindSpeed').innerText = speedFormatted;
             document.getElementById('tblWindDirDeg').innerText = degFormatted;
-            document.getElementById('tblWindDirName').innerText = data.windDirName;
+            document.getElementById('tblWindDirName').innerText = dirName;
             document.getElementById('tblWifiSSID').innerText = data.wifiSSID || '--';
             document.getElementById('tblWifiRSSI').innerText = (data.rssi ? data.rssi + ' dBm' : '--');
             document.getElementById('tblIp').innerText = data.ip || '--';
             document.getElementById('tblUptime').innerText = (data.uptimeSec ? data.uptimeSec + ' s' : '--');
+
+            if (document.getElementById('tblDataSource')) {
+                document.getElementById('tblDataSource').innerText = data.source || '--';
+            }
+            if (document.getElementById('tblDataSourceDetail') && data.sourceDetail) {
+                document.getElementById('tblDataSourceDetail').innerText = data.sourceDetail;
+            }
             
-            document.getElementById('connStatus').innerText = "ONLINE (DEMO DÁTA)";
+            if (data.source) {
+                document.getElementById('connStatus').innerText = `ONLINE (${data.source})`;
+            }
         }
 
         async function fetchLive() {
+            const selEl = document.getElementById('selStation');
+            const chanId = selEl ? selEl.value : "3205571";
+            const cfg = TS_CONFIG[chanId] || TS_CONFIG["3205571"];
+
+            let adafruitData = null;
+            let adafruitTime = null;
+
+            let tsData = null;
+            let tsTime = null;
+
+            // 1. Skúsime načítať posledné dáta z Adafruit IO
             try {
-                // Skúsime načítať posledné dáta z Adafruit IO (REST API bez potreby hesla - musí byť PUBLIC)
                 const username = "Minime62";
                 const url = `https://io.adafruit.com/api/v2/${username}/feeds`;
                 
                 const res = await fetch(url);
-                if(!res.ok) {
-                    throw new Error("Nepodarilo sa načítať dáta z Adafruit IO.");
-                }
-                const feeds = await res.json(); // API vrati rovno pole feedov
-                
-                if (!feeds || feeds.length === 0) return;
+                if (res.ok) {
+                    const feeds = await res.json();
+                    if (Array.isArray(feeds) && feeds.length > 0) {
+                        adafruitData = {
+                            tempIn: null,
+                            tempOut: null,
+                            windSpeed: null,
+                            windSpeedMax: null,
+                            windDirDeg: null,
+                            windDirName: "--",
+                            humidity: null,
+                            pressure: null,
+                            rain: null,
+                            light: null,
+                            timestamp: null,
+                            source: "Adafruit IO",
+                            sourceDetail: "Adafruit IO REST API (Minime62)"
+                        };
 
-                let parsedData = {
-                    tempIn: 0,
-                    tempOut: 0,
-                    windSpeed: 0,
-                    windDirDeg: 0,
-                    windDirName: "--",
-                    timestamp: new Date().toLocaleString('sk-SK', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-                };
-
-                // Zozbierame dáta podľa kľúčov
-                for (const feed of feeds) {
-                    if (feed.last_value === null) continue;
-                    const val = parseFloat(feed.last_value);
-                    
-                    switch(feed.key) {
-                        case 'meteo.tempin': parsedData.tempIn = val; break;
-                        case 'meteo.tempout': parsedData.tempOut = val; break;
-                        case 'meteo.wind-speed-avg': parsedData.windSpeed = val; break;
-                        case 'meteo.wind-direction': 
-                            parsedData.windDirDeg = val; 
-                            // Prepočet stupňov na 16-smerovú veternú ružicu (krok 22.5°)
-                            const dirs16 = ["S", "SSV", "SV", "VSV", "V", "VJV", "JV", "JJV", "J", "JJZ", "JZ", "ZJZ", "Z", "ZSZ", "SZ", "SSZ"];
-                            parsedData.windDirName = dirs16[Math.round(((val % 360) / 22.5)) % 16];
-                            break;
+                        let maxDate = null;
+                        for (const feed of feeds) {
+                            if (feed.last_value === null || feed.last_value === undefined) continue;
+                            const val = parseFloat(feed.last_value);
+                            if (feed.last_value_at) {
+                                const d = new Date(feed.last_value_at);
+                                if (!isNaN(d.getTime()) && (!maxDate || d > maxDate)) {
+                                    maxDate = d;
+                                }
+                            }
+                            switch(feed.key) {
+                                case 'meteo.tempin': adafruitData.tempIn = isNaN(val) ? null : val; break;
+                                case 'meteo.tempout': adafruitData.tempOut = isNaN(val) ? null : val; break;
+                                case 'meteo.wind-speed-avg': adafruitData.windSpeed = isNaN(val) ? null : val; break;
+                                case 'meteo.wind-speed-max': adafruitData.windSpeedMax = isNaN(val) ? null : val; break;
+                                case 'meteo.humidity': adafruitData.humidity = isNaN(val) ? null : val; break;
+                                case 'meteo.pressure': adafruitData.pressure = isNaN(val) ? null : val; break;
+                                case 'meteo.rain': adafruitData.rain = isNaN(val) ? null : val; break;
+                                case 'meteo.light': adafruitData.light = isNaN(val) ? null : val; break;
+                                case 'meteo.wind-direction': 
+                                    if (!isNaN(val)) {
+                                        adafruitData.windDirDeg = val; 
+                                        adafruitData.windDirName = ROSE_DIRS[Math.round(((val % 360) / 22.5)) % 16];
+                                    }
+                                    break;
+                            }
+                        }
+                        adafruitTime = maxDate;
+                        if (adafruitTime) {
+                            adafruitData.timestamp = adafruitTime.toLocaleString('sk-SK', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                        }
                     }
                 }
-                
-                // Získame aj timestamp posledného updatu
-                const tempInFeed = feeds.find(f => f.key === 'meteo.tempin');
-                if (tempInFeed && tempInFeed.last_value_at) {
-                    parsedData.timestamp = new Date(tempInFeed.last_value_at).toLocaleString('sk-SK', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                }
+            } catch(e) {
+                console.warn("[Live] Adafruit IO chyba načítania:", e);
+            }
 
-                document.getElementById('connStatus').innerText = "ONLINE (Adafruit IO)";
-                updateUI(parsedData);
+            // 2. Skúsime načítať posledné dáta z ThingSpeak pre vybranú stanicu
+            try {
+                if (cfg && cfg.key) {
+                    const tsUrl = `https://api.thingspeak.com/channels/${chanId}/feeds.json?api_key=${cfg.key}&results=1&status=true`;
+                    const tsRes = await fetch(tsUrl);
+                    if (tsRes.ok) {
+                        const tsJson = await tsRes.json();
+                        if (tsJson.feeds && tsJson.feeds.length > 0) {
+                            const lastFeed = tsJson.feeds[tsJson.feeds.length - 1];
+                            const tIn = (lastFeed.field1 !== null && lastFeed.field1 !== undefined && lastFeed.field1 !== "") ? parseFloat(lastFeed.field1) : null;
+                            const tOut = (lastFeed.field2 !== null && lastFeed.field2 !== undefined && lastFeed.field2 !== "") ? parseFloat(lastFeed.field2) : null;
+                            const hum = (lastFeed.field3 !== null && lastFeed.field3 !== undefined && lastFeed.field3 !== "") ? parseFloat(lastFeed.field3) : null;
+                            const press = (lastFeed.field4 !== null && lastFeed.field4 !== undefined && lastFeed.field4 !== "") ? parseFloat(lastFeed.field4) : null;
+                            const dir = (lastFeed.field5 !== null && lastFeed.field5 !== undefined && lastFeed.field5 !== "") ? parseFloat(lastFeed.field5) : null;
+                            const spd = (lastFeed.field6 !== null && lastFeed.field6 !== undefined && lastFeed.field6 !== "") ? parseFloat(lastFeed.field6) : null;
+                            const spdMax = (lastFeed.field7 !== null && lastFeed.field7 !== undefined && lastFeed.field7 !== "") ? parseFloat(lastFeed.field7) : null;
+                            const rn = (lastFeed.field8 !== null && lastFeed.field8 !== undefined && lastFeed.field8 !== "") ? parseFloat(lastFeed.field8) : null;
 
-                // Pridáme vzorku do Veternej Ružice
-                if (parsedData.windSpeed !== undefined && parsedData.windDirDeg !== undefined) {
-                    addWindRoseSample(parsedData.windDirDeg, parsedData.windSpeed);
-                }
+                            let dirName = "--";
+                            if (dir !== null && !isNaN(dir)) {
+                                dirName = ROSE_DIRS[Math.round(((dir % 360) / 22.5)) % 16];
+                            }
 
-                // Pridáme vzorku do Časového Vývoja Smeru Vetra
-                if (parsedData.windSpeed !== undefined && parsedData.windDirDeg !== undefined) {
-                    const timeLabel = new Date().toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
-                    addLiveWindTimelineSample(timeLabel, parsedData.windDirDeg, parsedData.windSpeed, parsedData.windSpeed);
-                }
+                            if (lastFeed.status) {
+                                try {
+                                    const stObj = JSON.parse(lastFeed.status);
+                                    if (stObj.dir && stObj.dir.includes('/')) {
+                                        dirName = stObj.dir.split('/')[0];
+                                    }
+                                } catch(e) {}
+                            }
 
-                // Pridáme vzorku do Teplotného Grafu
-                if (parsedData.tempIn !== undefined && parsedData.tempOut !== undefined) {
-                    const timeLabel = new Date().toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
-                    addLiveTempSample(timeLabel, parsedData.tempIn, parsedData.tempOut);
+                            if (lastFeed.created_at) {
+                                const d = new Date(lastFeed.created_at);
+                                if (!isNaN(d.getTime())) tsTime = d;
+                            }
+
+                            tsData = {
+                                tempIn: (tIn !== null && !isNaN(tIn)) ? tIn : null,
+                                tempOut: (tOut !== null && !isNaN(tOut)) ? tOut : null,
+                                humidity: (hum !== null && !isNaN(hum)) ? hum : null,
+                                pressure: (press !== null && !isNaN(press)) ? press : null,
+                                windDirDeg: (dir !== null && !isNaN(dir)) ? dir : null,
+                                windDirName: dirName,
+                                windSpeed: (spd !== null && !isNaN(spd)) ? spd : null,
+                                windSpeedMax: (spdMax !== null && !isNaN(spdMax)) ? spdMax : null,
+                                rain: (rn !== null && !isNaN(rn)) ? rn : null,
+                                timestamp: tsTime ? tsTime.toLocaleString('sk-SK', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString(),
+                                source: `ThingSpeak (${cfg.name})`,
+                                sourceDetail: `ThingSpeak kanál ${chanId} (${cfg.name})`
+                            };
+                        }
+                    }
                 }
             } catch(e) {
-                console.log("Chyba:", e);
+                console.warn("[Live] ThingSpeak chyba načítania:", e);
+            }
+
+            // 3. Výber najčerstvejších dát: ak je Adafruit starší ako ThingSpeak, použijeme ThingSpeak
+            let chosenData = null;
+            if (adafruitData && tsData && adafruitTime && tsTime) {
+                if (tsTime.getTime() > adafruitTime.getTime()) {
+                    chosenData = tsData;
+                    chosenData.source = `ThingSpeak [${cfg.name}] (Záloha)`;
+                    chosenData.sourceDetail = `ThingSpeak (${cfg.name}) - Adafruit neaktuálny (${adafruitData.timestamp})`;
+                } else {
+                    chosenData = adafruitData;
+                    chosenData.source = "Adafruit IO";
+                    chosenData.sourceDetail = "Adafruit IO (Aktuálne)";
+                }
+            } else if (tsData && (!adafruitData || !adafruitTime)) {
+                chosenData = tsData;
+                chosenData.source = `ThingSpeak [${cfg.name}]`;
+                chosenData.sourceDetail = `ThingSpeak (${cfg.name}) - Adafruit nedostupný`;
+            } else if (adafruitData) {
+                chosenData = adafruitData;
+                chosenData.source = "Adafruit IO";
+            }
+
+            if (!chosenData) {
                 document.getElementById('connStatus').innerText = "OFFLINE / CHYBA";
+                return;
+            }
+
+            updateUI(chosenData);
+
+            // Pridáme vzorku do Veternej Ružice
+            if (chosenData.windSpeed !== null && chosenData.windSpeed !== undefined && !isNaN(chosenData.windSpeed) &&
+                chosenData.windDirDeg !== null && chosenData.windDirDeg !== undefined && !isNaN(chosenData.windDirDeg)) {
+                addWindRoseSample(chosenData.windDirDeg, chosenData.windSpeed);
+            }
+
+            // Pridáme vzorku do Časového Vývoja Smeru Vetra
+            if (chosenData.windSpeed !== null && chosenData.windSpeed !== undefined && !isNaN(chosenData.windSpeed) &&
+                chosenData.windDirDeg !== null && chosenData.windDirDeg !== undefined && !isNaN(chosenData.windDirDeg)) {
+                const timeLabel = new Date().toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
+                addLiveWindTimelineSample(timeLabel, chosenData.windDirDeg, chosenData.windSpeed, chosenData.windSpeedMax || chosenData.windSpeed);
+            }
+
+            // Pridáme vzorku do Teplotného Grafu
+            if ((chosenData.tempIn !== null && chosenData.tempIn !== undefined && !isNaN(chosenData.tempIn)) ||
+                (chosenData.tempOut !== null && chosenData.tempOut !== undefined && !isNaN(chosenData.tempOut))) {
+                const timeLabel = new Date().toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
+                addLiveTempSample(timeLabel, chosenData.tempIn, chosenData.tempOut);
             }
         }
         
