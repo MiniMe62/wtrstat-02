@@ -108,3 +108,78 @@ bool CloudOtaService::performUpdate(const String& url) {
 
     return false;
 }
+
+void CloudOtaService::resetAdafruitCommandFeed() {
+    if (WiFi.status() != WL_CONNECTED) return;
+
+    WiFiClientSecure client;
+    client.setInsecure();
+
+    HTTPClient http;
+    String url = String("https://io.adafruit.com/api/v2/") + Config::AIO_USERNAME + "/feeds/" + Config::AIO_CMD_FEED + "/data";
+    if (http.begin(client, url)) {
+        http.addHeader("X-AIO-Key", Config::AIO_KEY);
+        http.addHeader("Content-Type", "application/json");
+        http.POST("{\"value\":\"IDLE\"}");
+        http.end();
+        Serial.println("[CloudOTA] Adafruit IO feed 'meteo-cmd' bol resetovaný na stav 'IDLE'.");
+    }
+}
+
+bool CloudOtaService::checkAdafruitCommand() {
+    if (!Config::ENABLE_ADAFRUIT_IO_UPLOAD || WiFi.status() != WL_CONNECTED) {
+        return false;
+    }
+
+    WiFiClientSecure client;
+    client.setInsecure();
+
+    HTTPClient http;
+    http.setTimeout(5000);
+    String url = String("https://io.adafruit.com/api/v2/") + Config::AIO_USERNAME + "/feeds/" + Config::AIO_CMD_FEED + "/data/last";
+
+    if (!http.begin(client, url)) {
+        return false;
+    }
+
+    http.addHeader("X-AIO-Key", Config::AIO_KEY);
+    http.addHeader("Content-Type", "application/json");
+
+    int httpCode = http.GET();
+    if (httpCode == HTTP_CODE_OK || httpCode == 200) {
+        String payload = http.getString();
+        http.end();
+
+        StaticJsonDocument<512> doc;
+        DeserializationError err = deserializeJson(doc, payload);
+        if (!err) {
+            String val = doc["value"] | "";
+            val.trim();
+            if (val.equalsIgnoreCase("UPDATE")) {
+                Serial.println("\n[CloudOTA] ==========================================");
+                Serial.println("[CloudOTA] Prijatý príkaz UPDATE z Adafruit IO!");
+                Serial.println("[CloudOTA] ==========================================");
+                
+                // 1. Ochrana pred zacyklením - resetujeme feed na IDLE
+                resetAdafruitCommandFeed();
+
+                // 2. Kontrola novej verzie
+                OtaCheckResult res = checkVersion();
+                if (res.updateAvailable && !res.downloadUrl.isEmpty()) {
+                    Serial.printf("[CloudOTA] Na GitHube je dostupná nová verzia v%s (aktuálna v%s). Spúšťam inštaláciu...\n",
+                                  res.newVersion.c_str(), res.currentVersion.c_str());
+                    return performUpdate(res.downloadUrl);
+                } else if (res.error.length() > 0) {
+                    Serial.printf("[CloudOTA] Kontrola verzie zlyhala: %s\n", res.error.c_str());
+                } else {
+                    Serial.printf("[CloudOTA] Zariadenie už má najnovšiu verziu v%s. Inštalácia vynechaná.\n",
+                                  res.currentVersion.c_str());
+                }
+            }
+        }
+        return false;
+    }
+
+    http.end();
+    return false;
+}

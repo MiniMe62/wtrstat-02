@@ -21,8 +21,10 @@ public:
 
     OtaCheckResult checkVersion();
     bool performUpdate(const String& url);
+    bool checkAdafruitCommand();
 
 private:
     bool parseVersionJson(const String& json, OtaCheckResult& result);
     bool isNewerVersion(const String& newVer, const String& currVer);
+    void resetAdafruitCommandFeed();
 };

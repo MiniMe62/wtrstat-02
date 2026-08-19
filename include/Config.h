@@ -18,10 +18,11 @@
 
 namespace Config {
     // Verzia firmvéru a vzdialené aktualizácie
-    constexpr const char* FIRMWARE_VERSION = "2.0.0";
+    constexpr const char* FIRMWARE_VERSION = "2.0.1";
     constexpr const char* GITHUB_VERSION_URL = "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/version.json";
     constexpr bool AUTO_UPDATE_FROM_GITHUB = true;                     // Plne automatický background update bez nutnosti klikania
-    constexpr uint32_t AUTO_UPDATE_CHECK_INTERVAL_MS = 24 * 3600000;   // Perióda kontroly GitHubu (každých 24 hodín)
+    constexpr uint8_t AUTO_UPDATE_HOUR = 0;                            // Nočný čas dennej kontroly (00:10)
+    constexpr uint8_t AUTO_UPDATE_MINUTE = 10;
 
     // Sériová komunikácia
     constexpr uint32_t SERIAL_BAUD = 115200;
@@ -100,6 +101,7 @@ namespace Config {
     constexpr const char* AIO_USERNAME = "Minime62";
     constexpr const char* AIO_KEY = SECRET_AIO_KEY;
     constexpr const char* AIO_GROUP_TOPIC = "Minime62/groups/meteo/json";
+    constexpr const char* AIO_CMD_FEED = "meteo-cmd";                  // Feed pre On-Demand príkazy (napr. UPDATE)
 
     // Časovanie a intervaly
     constexpr uint32_t MEASURE_INTERVAL_MIN = 15;      // 15-minútový cyklus odosielania (GS, TS)

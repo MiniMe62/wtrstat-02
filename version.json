@@ -1,22 +1,22 @@
 {
   "TEST_VIDIEK": {
-    "version": "2.0.0",
+    "version": "2.0.1",
     "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_TEST_VIDIEK.bin",
-    "notes": "Testovacia verzia pre vidiek (realne senzory, testovaci ThingSpeak)"
+    "notes": "On-Demand OTA cez Adafruit IO trigger a nočná kontrola o 00:10"
   },
   "TEST_MESTO": {
-    "version": "2.0.0",
+    "version": "2.0.1",
     "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_TEST_MESTO.bin",
-    "notes": "Testovacia verzia pre mesto (simulovane senzory na stole)"
+    "notes": "On-Demand OTA cez Adafruit IO trigger a nočná kontrola o 00:10"
   },
   "GO85": {
-    "version": "2.0.0",
+    "version": "2.0.1",
     "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_GO85.bin",
-    "notes": "Ostra produkcna verzia pre vidiek"
+    "notes": "Produkcia vidiek: On-Demand OTA cez Adafruit IO trigger a nočná kontrola o 00:10"
   },
   "RU48": {
-    "version": "2.0.0",
+    "version": "2.0.1",
     "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_RU48.bin",
-    "notes": "Ostra produkcna verzia pre mesto"
+    "notes": "Produkcia mesto: On-Demand OTA cez Adafruit IO trigger a nočná kontrola o 00:10"
   }
 }

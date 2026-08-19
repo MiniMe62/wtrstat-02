@@ -36,6 +36,7 @@ static time_t s_lastUploadedMark15Min = 0;
 static time_t s_lastUploadedMark1Min = 0;
 
 // ================= ULOHY TASKSCHEDULER =================
+void cbCloudOtaAutoCheck();
 
 // 1. Čítanie senzorov každé 2 sekundy
 void cbSensorRead() {
@@ -93,6 +94,22 @@ void cbCheckUploadMark1Min() {
             }
             
         aggregator1Min.reset();
+
+        // 2c. Kontrola On-Demand príkazov z Adafruit IO (napr. tlačidlo UPDATE)
+        cloudOta.checkAdafruitCommand();
+
+        // 2d. Denná nočná kontrola v presnom čase (00:10)
+        static int s_lastDailyOtaDay = -1;
+        time_t localT = timeMgr.getLocalTime();
+        if (Config::AUTO_UPDATE_FROM_GITHUB &&
+            hour(localT) == Config::AUTO_UPDATE_HOUR &&
+            minute(localT) == Config::AUTO_UPDATE_MINUTE &&
+            s_lastDailyOtaDay != day(localT)) {
+            s_lastDailyOtaDay = day(localT);
+            Serial.printf("\n[%s] [CloudOTA] Nastal presný čas nočnej kontroly (%02d:%02d)!\n",
+                          timeMgr.getFormattedCustom().c_str(), Config::AUTO_UPDATE_HOUR, Config::AUTO_UPDATE_MINUTE);
+            cbCloudOtaAutoCheck();
+        }
     } else if (s_lastUploadedMark1Min == 0) {
         s_lastUploadedMark1Min = currentMark;
     }
@@ -120,12 +137,12 @@ void cbNtpPeriodicSync() {
     }
 }
 
-// 4. Automatická kontrola aktualizácie z GitHubu (každých 24 hodín)
+// 4. Automatická kontrola aktualizácie z GitHubu
 void cbCloudOtaAutoCheck() {
     if (!Config::AUTO_UPDATE_FROM_GITHUB || !wifiService.isConnected()) {
         return;
     }
-    Serial.println("\n[CloudOTA] Spúšťam plánovanú automatickú kontrolu verzie z GitHubu...");
+    Serial.println("\n[CloudOTA] Spúšťam plánovanú kontrolu verzie z GitHubu...");
     OtaCheckResult res = cloudOta.checkVersion();
     if (res.updateAvailable && !res.downloadUrl.isEmpty()) {
         Serial.printf("[CloudOTA] Zistená nová verzia pre stanicu %s: v%s! Spúšťam automatickú inštaláciu...\n",
@@ -144,7 +161,7 @@ Task tDisplayUpdate(1000, TASK_FOREVER, &cbDisplayUpdate);
 Task tCheckUpload15Min(1000, TASK_FOREVER, &cbCheckUploadMark15Min);
 Task tCheckUpload1Min(1000, TASK_FOREVER, &cbCheckUploadMark1Min);
 Task tNtpSync(3600000, TASK_FOREVER, &cbNtpPeriodicSync); // Každú 1 hodinu
-Task tCloudOtaAutoCheck(Config::AUTO_UPDATE_CHECK_INTERVAL_MS, TASK_FOREVER, &cbCloudOtaAutoCheck); // Každých 24 hodín
+Task tCloudOtaBootCheck(120000, TASK_ONCE, &cbCloudOtaAutoCheck); // Jednorazová kontrola 2 minúty po štarte
 Task tWindDebug(2000, TASK_FOREVER, &cbPrintWindDebug); // Debug WindVane každých 10 sekúnd (len pre vývoj, vypnúť v produkcii) 
 Task tLiveWindDebug(2000, TASK_FOREVER, &cbPrintLiveWindDebug);
 
@@ -184,7 +201,7 @@ void setup() {
     runner.addTask(tCheckUpload15Min);
     runner.addTask(tCheckUpload1Min);
     runner.addTask(tNtpSync);
-    runner.addTask(tCloudOtaAutoCheck);
+    runner.addTask(tCloudOtaBootCheck);
     runner.addTask(tWindDebug); // Len pre vývoj, vypnúť v produkcii
     runner.addTask(tLiveWindDebug); // Len pre vývoj, vypnúť v produkcii
 
@@ -196,9 +213,9 @@ void setup() {
     tCheckUpload1Min.enable();
     // Spustíme NTP synchronizáciu s posunom 7 minút po štarte (mimo 15-minútových záveriek)
     tNtpSync.enableDelayed(7 * 60 * 1000);
-    // Spustíme prvú kontrolu GitHubu 10 minút po štarte, potom každých 24h
+    // Spustíme jednorazovú boot kontrolu GitHubu 2 minúty po štarte (nočná beží o 00:10, on-demand cez Adafruit IO)
     if (Config::AUTO_UPDATE_FROM_GITHUB) {
-        tCloudOtaAutoCheck.enableDelayed(10 * 60 * 1000);
+        tCloudOtaBootCheck.enableDelayed(2 * 60 * 1000);
     }
     tWindDebug.enable(); // Len pre vývoj, vypnúť v produkcii
     tLiveWindDebug.enable(); // Len pre vývoj, vypnúť v produkcii
