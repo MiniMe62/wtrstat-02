@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <WebServer.h>
+#include <Update.h>
 #include <ArduinoJson.h>
 #include "TempSensorManager.h"
 #include "Anemometer.h"
@@ -10,7 +11,7 @@
 #include "TimeManager.h"
 
 /**
- * @brief Lokálny Web Server poskytujúci responsive meteo Dashboard (HTML/CSS/JS) a JSON API
+ * @brief Lokálny Web Server poskytujúci responsive meteo Dashboard (HTML/CSS/JS), JSON API a Web OTA Update
  */
 class WebServerManager {
 public:
@@ -30,4 +31,10 @@ private:
     void handleRoot();
     void handleApiLive();
     void handleNotFound();
+
+    // Web OTA Update
+    void handleUpdatePage();
+    void handleUpdateUpload();
+    void handleUpdateDone();
 };
+

@@ -838,7 +838,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
         </div>
 
         <footer>
-            wtrStat-02 • ESP32 Weather Station Firmware • PlatformIO C++
+            wtrStat-02 • ESP32 Weather Station Firmware • <a href="/update" style="color: var(--primary); text-decoration: none;">⚙️ OTA Update</a>
         </footer>
     </div>
 
@@ -1880,6 +1880,213 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
 </html>
 )rawliteral";
 
+static const char UPDATE_HTML[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wtrStat-02 • OTA Aktualizácia</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0b1329 0%, #101c3d 50%, #0d1527 100%);
+            --card-bg: rgba(22, 33, 62, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --primary: #38bdf8;
+            --primary-glow: rgba(56, 189, 248, 0.25);
+            --accent: #f43f5e;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #34d399;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', system-ui, sans-serif; }
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 24px 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 28px;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        }
+        h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        p { color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; margin-bottom: 20px; }
+        .file-box {
+            border: 2px dashed rgba(56, 189, 248, 0.3);
+            border-radius: 14px;
+            padding: 20px;
+            text-align: center;
+            background: rgba(56, 189, 248, 0.03);
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: all 0.2s ease;
+        }
+        .file-box:hover { border-color: var(--primary); background: rgba(56, 189, 248, 0.08); }
+        input[type="file"] { display: none; }
+        .file-label { font-size: 0.88rem; font-weight: 600; color: var(--primary); cursor: pointer; }
+        .selected-file { font-size: 0.8rem; color: var(--text-muted); margin-top: 6px; word-break: break-all; }
+        .btn-upload {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #38bdf8 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+        .btn-upload:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-upload:hover:not(:disabled) { opacity: 0.9; }
+        .progress-bar-bg {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            height: 12px;
+            overflow: hidden;
+            margin-top: 16px;
+            display: none;
+        }
+        .progress-bar-fill {
+            background: linear-gradient(90deg, #38bdf8, #34d399);
+            height: 100%;
+            width: 0%;
+            transition: width 0.2s ease;
+        }
+        .status-msg {
+            margin-top: 14px;
+            font-size: 0.85rem;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            text-decoration: none;
+        }
+        .back-link:hover { color: var(--primary); }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>⚡ OTA Aktualizácia</h1>
+        <p>Nahrajte súbor <code>firmware.bin</code> pre bezdrôtový update firmvéru ESP32.</p>
+        
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="file-box" onclick="document.getElementById('firmwareFile').click()">
+                <div class="file-label">📁 Kliknite pre výber súboru .bin</div>
+                <div class="selected-file" id="fileName">Žiadny súbor nevybraný</div>
+                <input type="file" id="firmwareFile" accept=".bin" onchange="onFileSelected(this)">
+            </div>
+
+            <button type="button" class="btn-upload" id="btnSubmit" onclick="uploadFirmware()" disabled>🚀 Spustiť aktualizáciu</button>
+        </form>
+
+        <div class="progress-bar-bg" id="pBarBg">
+            <div class="progress-bar-fill" id="pBarFill"></div>
+        </div>
+        <div class="status-msg" id="statusMsg"></div>
+
+        <a href="/" class="back-link">← Späť na Dashboard</a>
+    </div>
+
+    <script>
+        function onFileSelected(input) {
+            const btn = document.getElementById('btnSubmit');
+            const label = document.getElementById('fileName');
+            if (input.files && input.files.length > 0) {
+                const file = input.files[0];
+                label.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+                label.style.color = '#38bdf8';
+                btn.disabled = false;
+            } else {
+                label.textContent = 'Žiadny súbor nevybraný';
+                label.style.color = '#94a3b8';
+                btn.disabled = true;
+            }
+        }
+
+        function uploadFirmware() {
+            const input = document.getElementById('firmwareFile');
+            if (!input.files || input.files.length === 0) return;
+
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append('update', file);
+
+            const btn = document.getElementById('btnSubmit');
+            const pBarBg = document.getElementById('pBarBg');
+            const pBarFill = document.getElementById('pBarFill');
+            const statusMsg = document.getElementById('statusMsg');
+
+            btn.disabled = true;
+            pBarBg.style.display = 'block';
+            statusMsg.style.display = 'block';
+            statusMsg.style.color = '#38bdf8';
+            statusMsg.textContent = '⏳ Nahrávam firmvér... 0%';
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/update', true);
+
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    pBarFill.style.width = percent + '%';
+                    statusMsg.textContent = '⏳ Nahrávam do ESP32... ' + percent + '%';
+                }
+            };
+
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    pBarFill.style.width = '100%';
+                    statusMsg.style.color = '#34d399';
+                    statusMsg.innerHTML = '✅ <b>Úspešne nahraté!</b><br>ESP32 sa reštartuje... Presmerovanie za 12s.';
+                    setTimeout(function() {
+                        window.location.href = '/';
+                    }, 12000);
+                } else {
+                    statusMsg.style.color = '#f43f5e';
+                    statusMsg.innerHTML = '❌ <b>Chyba pri nahrávaní!</b> (Kód: ' + xhr.status + ')';
+                    btn.disabled = false;
+                }
+            };
+
+            xhr.onerror = function() {
+                statusMsg.style.color = '#f43f5e';
+                statusMsg.innerHTML = '❌ <b>Chyba spojenia!</b> Skontrolujte WiFi signál.';
+                btn.disabled = false;
+            };
+
+            xhr.send(formData);
+        }
+    </script>
+</body>
+</html>
+)rawliteral";
+
 WebServerManager::WebServerManager()
     : _server(80),
       _tempMgr(nullptr),
@@ -1898,10 +2105,12 @@ void WebServerManager::begin(const TempSensorManager* tempMgr, const Anemometer*
 
     _server.on("/", [this]() { handleRoot(); });
     _server.on("/api/live", [this]() { handleApiLive(); });
+    _server.on("/update", HTTP_GET, [this]() { handleUpdatePage(); });
+    _server.on("/update", HTTP_POST, [this]() { handleUpdateDone(); }, [this]() { handleUpdateUpload(); });
     _server.onNotFound([this]() { handleNotFound(); });
 
     _server.begin();
-    Serial.println("[WebServer] HTTP Web Dashboard spustený na porte 80");
+    Serial.println("[WebServer] HTTP Web Dashboard a OTA spustený na porte 80");
 }
 
 void WebServerManager::handleRoot() {
@@ -1910,6 +2119,44 @@ void WebServerManager::handleRoot() {
 
 void WebServerManager::handleNotFound() {
     _server.send(404, "text/plain", "404 Not Found");
+}
+
+void WebServerManager::handleUpdatePage() {
+    _server.send_P(200, "text/html", UPDATE_HTML);
+}
+
+void WebServerManager::handleUpdateDone() {
+    _server.sendHeader("Connection", "close");
+    if (Update.hasError()) {
+        _server.send(500, "text/plain", "OTA Update Failed");
+    } else {
+        _server.send(200, "text/plain", "OTA Update OK");
+        delay(1000);
+        ESP.restart();
+    }
+}
+
+void WebServerManager::handleUpdateUpload() {
+    HTTPUpload& upload = _server.upload();
+    if (upload.status == UPLOAD_FILE_START) {
+        Serial.printf("[OTA] Štart nahrávania súboru: %s\n", upload.filename.c_str());
+        if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+            Update.printError(Serial);
+        }
+    } else if (upload.status == UPLOAD_FILE_WRITE) {
+        if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+            Update.printError(Serial);
+        }
+    } else if (upload.status == UPLOAD_FILE_END) {
+        if (Update.end(true)) {
+            Serial.printf("[OTA] Úspešne nahratých %u bajtov. ESP32 sa reštartuje...\n", upload.totalSize);
+        } else {
+            Update.printError(Serial);
+        }
+    } else if (upload.status == UPLOAD_FILE_ABORTED) {
+        Update.end();
+        Serial.println("[OTA] Nahrávanie bolo prerušené!");
+    }
 }
 
 void WebServerManager::handleApiLive() {

@@ -11,7 +11,6 @@
 #include "TimeManager.h"
 #include "DataAggregator.h"
 #include "UploaderService.h"
-#include "BleService.h"
 #include "WebServerManager.h"
 #include "DisplayManager.h"
 
@@ -25,7 +24,6 @@ TimeManager timeMgr;
 DataAggregator aggregator15Min;
 DataAggregator aggregator1Min;
 UploaderService uploader;
-BleService bleService;
 WebServerManager webServerMgr;
 DisplayManager displayMgr;
 
@@ -45,12 +43,7 @@ void cbSensorRead() {
     aggregator1Min.sample(tempMgr, anemometer, windVane);
 }
 
-// 2. BLE Advertising aktualizácia každých 60 sekúnd
-void cbBleUpdate() {
-    bleService.updatePayload(tempMgr, anemometer, windVane, timeMgr);
-}
-
-// 3a. Kontrola 15-minútového intervalu každú sekundu
+// 2a. Kontrola 15-minútového intervalu každú sekundu
 void cbCheckUploadMark15Min() {
     time_t currentMark = timeMgr.getMarkTime(Config::MEASURE_INTERVAL_MIN);
 
@@ -79,7 +72,7 @@ void cbCheckUploadMark15Min() {
     }
 }
 
-// 3b. Kontrola 1-minútového intervalu pre Adafruit IO
+// 2b. Kontrola 1-minútového intervalu pre Adafruit IO
 void cbCheckUploadMark1Min() {
     time_t currentMark = timeMgr.getMarkTime(Config::MEASURE_INTERVAL_FAST_MIN);
 
@@ -117,7 +110,7 @@ void cbDisplayUpdate() {
     }
 }
 
-// 4. Periodická NTP synchronizácia (každú 1 hodinu mimo 15-min záveriek)
+// 3. Periodická NTP synchronizácia (každú 1 hodinu mimo 15-min záveriek)
 void cbNtpPeriodicSync() {
     if (wifiService.isConnected()) {
         Serial.println("\n[NTP] Spúšťam plánovanú hodinovú resynchronizáciu času...");
@@ -127,7 +120,6 @@ void cbNtpPeriodicSync() {
 
 // Definovanie úloh TaskScheduler
 Task tSensorRead(Config::SENSOR_READ_INTERVAL_MS, TASK_FOREVER, &cbSensorRead);
-Task tBleUpdate(Config::BLE_UPDATE_INTERVAL_MS, TASK_FOREVER, &cbBleUpdate);
 Task tDisplayUpdate(1000, TASK_FOREVER, &cbDisplayUpdate);
 Task tCheckUpload15Min(1000, TASK_FOREVER, &cbCheckUploadMark15Min);
 Task tCheckUpload1Min(1000, TASK_FOREVER, &cbCheckUploadMark1Min);
@@ -164,13 +156,9 @@ void setup() {
     }
     webServerMgr.begin(&tempMgr, &anemometer, &windVane, &wifiService, &timeMgr);
 
-    // Inicializácia BLE
-    bleService.begin();
-
     // Pridanie úloh do plánovača TaskScheduler
     runner.init();
     runner.addTask(tSensorRead);
-    runner.addTask(tBleUpdate);
     runner.addTask(tDisplayUpdate);
     runner.addTask(tCheckUpload15Min);
     runner.addTask(tCheckUpload1Min);
@@ -179,7 +167,6 @@ void setup() {
     runner.addTask(tLiveWindDebug); // Len pre vývoj, vypnúť v produkcii
 
     tSensorRead.enable();
-    tBleUpdate.enable();
     if (Config::ENABLE_OLED) {
         tDisplayUpdate.enable();
     }

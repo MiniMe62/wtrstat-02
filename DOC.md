@@ -146,3 +146,10 @@ Integrovaný webový dashboard (dostupný lokálne na IP adrese stanice a verejn
 * **Vycentrovaná Veterná Ružica (Polar Area Chart):** Sever (S) je striktne zarovnaný vertikálne na 12:00 (`startAngle: -11.25`).
 * **Interaktívny Teplotný Graf:** Priebeh $T_{in}$ a $T_{out}$ s kubickým Bézierovým vyhladzovaním, prepínaním pohľadov (`Obe`, `Tin`, `Tout`) a automatickým prispôsobením citlivosti Y-osi.
 * **Prepínač bubliniek (`💬 Bubliny ZAP/VYP`):** Špeciálne tlačidlo v záhlaví každého grafu optimalizované pre smartfóny umožňujúce jedným ťuknutím skryť/zobraziť tooltip bublinu, aby na mobile neprekrývala krivky.
+
+## 15. Bezdrôtové Web OTA Aktualizácie (Dual-Bank Partície)
+Pre pohodlný update firmvéru bez nutnosti pripájať notebook cez USB kábel:
+* **Webové rozhranie:** Stránka dostupná na adrese `http://<IP_STANICE>/update` s responsívnym UI a vizuálnym indikátorom priebehu nahrávania.
+* **Dual-Bank Partície (`min_spiffs.csv`):** Flash pamäť ESP32 je rozdelená na 2 nezávislé sloty (`app0` a `app1`, každý ~1.92 MB). Pri nahrávaní beží stanica z jedného slotu a nový `.bin` sa zapisuje do druhého. Ak dôjde k prerušeniu spojenia, stanica bezpečne naštartuje z pôvodného slotu.
+* **Ako sa vrátiť k jednej veľkej ~3 MB partícii:** V súbore `platformio.ini` stačí prehodiť riadok na `board_build.partitions = huge_app.csv` a nahrať cez USB kábel.
+
