@@ -7,13 +7,14 @@
  * @brief Globálna konfigurácia pre wtrStat-02
  */
 
-// Profily staníc pre ochranu historických dát
-#define SITE_GO85 1
-#define SITE_RU48 2
-#define SITE_TEST 3
+// Profily staníc pre ochranu dát a nezávislé OTA aktualizácie
+#define SITE_TEST_VIDIEK 1  // Testovacia stanica na vidieku (reálne senzory, testovací ThingSpeak)
+#define SITE_TEST_MESTO  2  // Testovacia stanica v meste na stole (simulované senzory)
+#define SITE_GO85        3  // Ostrá produkcia vidiek
+#define SITE_RU48        4  // Ostrá produkcia mesto
 
-// Vyberte aktívny profil (SITE_TEST pre bezpečné ladenie)
-#define CURRENT_SITE SITE_TEST
+// Vyberte aktívny profil pre kompiláciu:
+#define CURRENT_SITE SITE_TEST_VIDIEK
 
 namespace Config {
     // Verzia firmvéru a vzdialené aktualizácie
@@ -28,11 +29,6 @@ namespace Config {
     // Bezpečnostný prepínač pre simuláciu odosielania (Dry Run)
     // Ak true: Dáta sa iba vypíšu do sériového monitora, no NEODOSLÚ sa do žiadneho cloudu.
     constexpr bool DRY_RUN_UPLOAD = false; // Nastavte na false pre bežný beh
-
-    // Prepínače odosielania do jednotlivých cloudových služieb
-    constexpr bool ENABLE_THINGSPEAK_UPLOAD = false;      // VYPÍNAME pre šetrenie limitu správ na ThingSpeak
-    constexpr bool ENABLE_GOOGLE_SHEETS_UPLOAD = false;    // Google Sheets ukladanie aktívne
-    constexpr bool ENABLE_ADAFRUIT_IO_UPLOAD = false;      // Adafruit IO 1-minútové odosielanie aktívne
 
     // Štruktúra pre WiFi prístupový bod
     struct WifiAp {
@@ -52,23 +48,50 @@ namespace Config {
     // Google Sheets WebApp URL
     constexpr const char* GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbziQxQvON5aQwpzPSWuCbRWRGeynLqxo1ZiTa5VqQJZV6P6O6icVlHbVcFvC-XzuEDH/exec";
 
-    // Dynamic Cloud Configuration podľa profilu CURRENT_SITE
-    // ThingSpeak používa HTTP (http://api.thingspeak.com) pre šetrenie RAM (bez SSL handshaku)
-#if CURRENT_SITE == SITE_TEST
-    constexpr const char* LOC_ID = "TEST";
+    // Dynamic Cloud Configuration & Prepínače podľa profilu CURRENT_SITE
+#if CURRENT_SITE == SITE_TEST_VIDIEK
+    constexpr const char* LOC_ID = "TEST_VIDIEK";
     constexpr const char* TS_SERVER = "http://api.thingspeak.com";
     constexpr const char* TS_CHAN_ID = "3205571";
     constexpr const char* TS_API_KEY = "SXG8MK33NKFEA0UX";
+    constexpr bool ENABLE_THINGSPEAK_UPLOAD = true;       // Zápis do testovacieho ThingSpeak kanálu
+    constexpr bool ENABLE_GOOGLE_SHEETS_UPLOAD = false;   // NEZAPISUJE do produkčného Google Sheets
+    constexpr bool ENABLE_ADAFRUIT_IO_UPLOAD = true;      // Adafruit IO 1-minútové odosielanie
+    #define SIMULATE_WIND_SENSORS false                   // Čítať z reálnych senzorov na vidieku
+    #define SIMULATE_TEMP_SENSORS false                   // Čítať z reálnych teplomerov na vidieku
+
+#elif CURRENT_SITE == SITE_TEST_MESTO
+    constexpr const char* LOC_ID = "TEST_MESTO";
+    constexpr const char* TS_SERVER = "http://api.thingspeak.com";
+    constexpr const char* TS_CHAN_ID = "3205571";
+    constexpr const char* TS_API_KEY = "SXG8MK33NKFEA0UX";
+    constexpr bool ENABLE_THINGSPEAK_UPLOAD = false;      // Vypnuté v meste, aby nekolidovalo s testom z vidieka
+    constexpr bool ENABLE_GOOGLE_SHEETS_UPLOAD = false;
+    constexpr bool ENABLE_ADAFRUIT_IO_UPLOAD = false;
+    #define SIMULATE_WIND_SENSORS true                    // Simulácia vetra na stole
+    #define SIMULATE_TEMP_SENSORS true                    // Simulácia teplôt na stole
+
+#elif CURRENT_SITE == SITE_GO85
+    constexpr const char* LOC_ID = "GO85";
+    constexpr const char* TS_SERVER = "http://api.thingspeak.com";
+    constexpr const char* TS_CHAN_ID = "1554841";
+    constexpr const char* TS_API_KEY = "M4SJ7BSW2LR4WQVD";
+    constexpr bool ENABLE_THINGSPEAK_UPLOAD = true;
+    constexpr bool ENABLE_GOOGLE_SHEETS_UPLOAD = true;
+    constexpr bool ENABLE_ADAFRUIT_IO_UPLOAD = true;
+    #define SIMULATE_WIND_SENSORS false
+    #define SIMULATE_TEMP_SENSORS false
+
 #elif CURRENT_SITE == SITE_RU48
     constexpr const char* LOC_ID = "RU48";
     constexpr const char* TS_SERVER = "http://api.thingspeak.com";
     constexpr const char* TS_CHAN_ID = "287161";
     constexpr const char* TS_API_KEY = "WEO05BAL45Y3E52D";
-#else // SITE_GO85
-    constexpr const char* LOC_ID = "GO85";
-    constexpr const char* TS_SERVER = "http://api.thingspeak.com";
-    constexpr const char* TS_CHAN_ID = "1554841";
-    constexpr const char* TS_API_KEY = "M4SJ7BSW2LR4WQVD";
+    constexpr bool ENABLE_THINGSPEAK_UPLOAD = true;
+    constexpr bool ENABLE_GOOGLE_SHEETS_UPLOAD = true;
+    constexpr bool ENABLE_ADAFRUIT_IO_UPLOAD = true;
+    #define SIMULATE_WIND_SENSORS false
+    #define SIMULATE_TEMP_SENSORS false
 #endif
 
     // Adafruit IO
@@ -82,7 +105,6 @@ namespace Config {
     constexpr uint32_t MEASURE_INTERVAL_MIN = 15;      // 15-minútový cyklus odosielania (GS, TS)
     constexpr uint32_t MEASURE_INTERVAL_FAST_MIN = 1;  // 1-minútový cyklus odosielania (Adafruit IO)
     constexpr uint32_t SENSOR_READ_INTERVAL_MS = 2000;   // Čítanie senzorov každé 2s
-    constexpr uint32_t BLE_UPDATE_INTERVAL_MS = 60000;   // BLE broadcast každých 60s
     constexpr uint32_t HALL_REPORT_INTERVAL_MS = 5000;   // Anemometer kĺzavé okno
 
     // Kalibrácia Anemometra
@@ -99,8 +121,5 @@ namespace Config {
     constexpr uint32_t OLED_TIMEOUT_MS = 60000;           // Doba svietenia OLED po štarte / dotyku v ms (60000 = 1 min, 0 = stále zapnuté)
     constexpr uint16_t OLED_TOUCH_THRESHOLD = 150;        // Prah citlivosti kapacitného dotyku (hodnota klesá pri dotyku nastavene na 150 - bez dotyku je cca 760)
     constexpr uint32_t OLED_TOUCH_DEBOUNCE_MS = 300;      // Debounce filter proti viacnásobnému dotyku v ms
-    
-    // Simulácia vstupov pre vývoj (bez pripojených senzorov)
-    #define SIMULATE_WIND_SENSORS true
-    #define SIMULATE_TEMP_SENSORS true
 }
+
