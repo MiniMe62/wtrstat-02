@@ -247,4 +247,43 @@ Ak by ste v budúcnosti potrebovali celú pamäť (~3.14 MB) pre jednu obrovskú
    ```
 2. Pripojte ESP32 cez USB kábel a nahrajte firmvér štandardným príkazom `pio run --target upload`.
 
+---
+
+### 15.6 Vzdialené aktualizácie cez GitHub a Selektovanie staníc (`version.json`)
+
+Pre plne vzdialenú správu staníc bez nutnosti byť fyzicky na mieste:
+
+#### 1. Selektovanie staníc cez `version.json`:
+V koreňovom priečinku repozitára (alebo na GitHub Pages / Releases) sa nachádza konfiguračný súbor `version.json`. Každá stanica (`GO85` pre vidiek, `RU48` pre mesto, `TEST` pre laboratórium) má v tomto súbore vlastnú sekciu s číslom verzie a URL adresou binárky:
+
+```json
+{
+  "GO85": {
+    "version": "2.0.1",
+    "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_GO85.bin",
+    "notes": "Oprava kalibrácie veternej ružice na vidieku"
+  },
+  "RU48": {
+    "version": "2.0.0",
+    "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_RU48.bin",
+    "notes": "Pôvodná stabilná verzia pre mesto"
+  },
+  "TEST": {
+    "version": "2.0.1",
+    "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_TEST.bin",
+    "notes": "Testovacie zostavenie"
+  }
+}
+```
+
+#### 2. Ako funguje selektívny update:
+* Každé ESP32 pri overovaní porovnáva svoju internú verziu `Config::FIRMWARE_VERSION` s verziou uvedenou **výhradne pre svoje `Config::LOC_ID`** v súbore `version.json`.
+* Ak zmeníte verziu na `2.0.1` len v sekcii `"GO85"`, stanica na vidieku (`GO85`) okamžite rozpozná dostupný update, zatiaľ čo stanica v meste (`RU48`) zostane nedotknutá.
+
+#### 3. Postup spustenia z webového rozhrania:
+1. Otvorte stránku `http://<IP_STANICE>/update`.
+2. Kliknite na **"🔎 Skontrolovať novú verziu na GitHube"**.
+3. ESP32 načíta `version.json` priamo z GitHubu a zobrazí poznámky k vydaniu.
+4. Kliknutím na **"🚀 Inštalovať z GitHubu"** si ESP32 samo stiahne `.bin` súbor, zapíše ho do záložnej OTA partície a reštartuje sa.
+
 

@@ -1886,7 +1886,7 @@ static const char UPDATE_HTML[] PROGMEM = R"rawliteral(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>wtrStat-02 • OTA Aktualizácia</title>
+    <title>wtrStat-02 • Aktualizácia firmvéru</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         :root {
@@ -1910,60 +1910,109 @@ static const char UPDATE_HTML[] PROGMEM = R"rawliteral(
             justify-content: center;
             align-items: center;
         }
+        .container-box {
+            width: 100%;
+            max-width: 520px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
         .card {
             background: var(--card-bg);
             backdrop-filter: blur(16px);
             border: 1px solid var(--card-border);
             border-radius: 20px;
-            padding: 28px;
-            width: 100%;
-            max-width: 480px;
+            padding: 24px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.4);
         }
         h1 {
-            font-size: 1.4rem;
+            font-size: 1.35rem;
             font-weight: 700;
             background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
-        p { color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; margin-bottom: 20px; }
+        .sub-desc { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 14px; }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            font-size: 0.82rem;
+        }
+        .info-grid div span { color: var(--text-muted); }
+        .info-grid div b { color: var(--primary); }
+        
+        .section-header {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
         .file-box {
             border: 2px dashed rgba(56, 189, 248, 0.3);
             border-radius: 14px;
-            padding: 20px;
+            padding: 16px;
             text-align: center;
             background: rgba(56, 189, 248, 0.03);
             cursor: pointer;
-            margin-bottom: 20px;
+            margin-bottom: 14px;
             transition: all 0.2s ease;
         }
         .file-box:hover { border-color: var(--primary); background: rgba(56, 189, 248, 0.08); }
         input[type="file"] { display: none; }
-        .file-label { font-size: 0.88rem; font-weight: 600; color: var(--primary); cursor: pointer; }
-        .selected-file { font-size: 0.8rem; color: var(--text-muted); margin-top: 6px; word-break: break-all; }
-        .btn-upload {
+        .file-label { font-size: 0.85rem; font-weight: 600; color: var(--primary); cursor: pointer; }
+        .selected-file { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; word-break: break-all; }
+        .btn-action {
             width: 100%;
-            padding: 12px;
+            padding: 11px;
             background: linear-gradient(135deg, #38bdf8 0%, #2563eb 100%);
             color: white;
             border: none;
             border-radius: 12px;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             font-weight: 600;
             cursor: pointer;
             transition: opacity 0.2s ease;
             box-shadow: 0 4px 15px var(--primary-glow);
         }
-        .btn-upload:disabled { opacity: 0.4; cursor: not-allowed; }
-        .btn-upload:hover:not(:disabled) { opacity: 0.9; }
+        .btn-action:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-action:hover:not(:disabled) { opacity: 0.9; }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--card-border);
+            box-shadow: none;
+        }
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(56, 189, 248, 0.4);
+        }
+
+        .github-box {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+        .gh-status { font-size: 0.82rem; margin-top: 8px; line-height: 1.4; }
+        .notes-box { font-size: 0.78rem; color: var(--text-muted); background: rgba(0,0,0,0.25); padding: 8px 10px; border-radius: 8px; margin: 8px 0; }
+
         .progress-bar-bg {
             background: rgba(255, 255, 255, 0.08);
             border-radius: 10px;
-            height: 12px;
+            height: 10px;
             overflow: hidden;
-            margin-top: 16px;
+            margin-top: 14px;
             display: none;
         }
         .progress-bar-fill {
@@ -1973,8 +2022,8 @@ static const char UPDATE_HTML[] PROGMEM = R"rawliteral(
             transition: width 0.2s ease;
         }
         .status-msg {
-            margin-top: 14px;
-            font-size: 0.85rem;
+            margin-top: 12px;
+            font-size: 0.82rem;
             text-align: center;
             font-weight: 500;
             display: none;
@@ -1982,7 +2031,7 @@ static const char UPDATE_HTML[] PROGMEM = R"rawliteral(
         .back-link {
             display: block;
             text-align: center;
-            margin-top: 20px;
+            margin-top: 6px;
             font-size: 0.82rem;
             color: var(--text-muted);
             text-decoration: none;
@@ -1991,31 +2040,149 @@ static const char UPDATE_HTML[] PROGMEM = R"rawliteral(
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>⚡ OTA Aktualizácia</h1>
-        <p>Nahrajte súbor <code>firmware.bin</code> pre bezdrôtový update firmvéru ESP32.</p>
-        
-        <form id="uploadForm" enctype="multipart/form-data">
-            <div class="file-box" onclick="document.getElementById('firmwareFile').click()">
-                <div class="file-label">📁 Kliknite pre výber súboru .bin</div>
-                <div class="selected-file" id="fileName">Žiadny súbor nevybraný</div>
-                <input type="file" id="firmwareFile" accept=".bin" onchange="onFileSelected(this)">
+    <div class="container-box">
+        <div class="card">
+            <h1>⚡ OTA Aktualizácia Firmvéru</h1>
+            <p class="sub-desc">Správa a aktualizácia firmvéru ESP32 na diaľku alebo lokálne.</p>
+
+            <div class="info-grid">
+                <div><span>Stanica:</span> <b id="lblSite">--</b></div>
+                <div><span>Verzia FW:</span> <b id="lblVer">--</b></div>
             </div>
 
-            <button type="button" class="btn-upload" id="btnSubmit" onclick="uploadFirmware()" disabled>🚀 Spustiť aktualizáciu</button>
-        </form>
+            <!-- GitHub Cloud OTA Section -->
+            <div class="section-header">🌐 1. Vzdialený Update z GitHubu</div>
+            <div class="github-box">
+                <button type="button" class="btn-action btn-secondary" id="btnCheckGh" onclick="checkGitHubUpdate()">🔎 Skontrolovať novú verziu na GitHube</button>
+                <div class="gh-status" id="ghStatus" style="display:none;"></div>
+                <div id="ghActionBox" style="display:none; margin-top:10px;">
+                    <div class="notes-box" id="ghNotes"></div>
+                    <button type="button" class="btn-action" id="btnInstallGh" onclick="installGitHubUpdate()">🚀 Inštalovať z GitHubu</button>
+                </div>
+            </div>
 
-        <div class="progress-bar-bg" id="pBarBg">
-            <div class="progress-bar-fill" id="pBarFill"></div>
+            <!-- Local Upload Section -->
+            <div class="section-header" style="margin-top:18px;">📁 2. Manuálne nahratie .bin súboru (z mobilu/PC)</div>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="file-box" onclick="document.getElementById('firmwareFile').click()">
+                    <div class="file-label">📁 Kliknite pre výber lokálneho súboru .bin</div>
+                    <div class="selected-file" id="fileName">Žiadny súbor nevybraný</div>
+                    <input type="file" id="firmwareFile" accept=".bin" onchange="onFileSelected(this)">
+                </div>
+
+                <button type="button" class="btn-action" id="btnSubmitLocal" onclick="uploadLocalFirmware()" disabled>🚀 Nahrať lokálny súbor</button>
+            </form>
+
+            <div class="progress-bar-bg" id="pBarBg">
+                <div class="progress-bar-fill" id="pBarFill"></div>
+            </div>
+            <div class="status-msg" id="statusMsg"></div>
+
+            <a href="/" class="back-link">← Späť na Dashboard</a>
         </div>
-        <div class="status-msg" id="statusMsg"></div>
-
-        <a href="/" class="back-link">← Späť na Dashboard</a>
     </div>
 
     <script>
+        let latestDownloadUrl = '';
+
+        // Načítanie základných informácií o stanici
+        fetch('/api/live')
+            .then(r => r.json())
+            .then(d => {
+                document.getElementById('lblSite').textContent = d.stationId || 'TEST';
+            })
+            .catch(() => {});
+
+        fetch('/api/ota/check')
+            .then(r => r.json())
+            .then(d => {
+                document.getElementById('lblVer').textContent = 'v' + (d.currentVersion || '2.0.0');
+                if (d.stationId) document.getElementById('lblSite').textContent = d.stationId;
+            })
+            .catch(() => {});
+
+        function checkGitHubUpdate() {
+            const btn = document.getElementById('btnCheckGh');
+            const status = document.getElementById('ghStatus');
+            const actionBox = document.getElementById('ghActionBox');
+            const notes = document.getElementById('ghNotes');
+
+            btn.disabled = true;
+            status.style.display = 'block';
+            status.style.color = '#38bdf8';
+            status.innerHTML = '⏳ Pripájam sa k GitHubu a overujem verziu...';
+            actionBox.style.display = 'none';
+
+            fetch('/api/ota/check')
+                .then(r => r.json())
+                .then(d => {
+                    btn.disabled = false;
+                    if (d.error && d.error.length > 0) {
+                        status.style.color = '#f43f5e';
+                        status.innerHTML = '❌ ' + d.error;
+                    } else if (d.updateAvailable) {
+                        status.style.color = '#34d399';
+                        status.innerHTML = '🌟 <b>Dostupná nová verzia: v' + d.newVersion + '</b> (pre stanicu ' + d.stationId + ')';
+                        notes.innerHTML = '<b>Poznámky k vydaniu:</b> ' + (d.notes || 'Bez popisu');
+                        latestDownloadUrl = d.downloadUrl;
+                        actionBox.style.display = 'block';
+                    } else {
+                        status.style.color = '#38bdf8';
+                        status.innerHTML = '✅ <b>Firmvér je aktuálny!</b> (Máte najnovšiu verziu v' + d.currentVersion + ')';
+                    }
+                })
+                .catch(err => {
+                    btn.disabled = false;
+                    status.style.color = '#f43f5e';
+                    status.innerHTML = '❌ Chyba spojenia s ESP32.';
+                });
+        }
+
+        function installGitHubUpdate() {
+            if (!latestDownloadUrl) return;
+            if (!confirm('Naozaj chcete spustiť aktualizáciu z GitHubu? ESP32 stiahne nový firmvér a reštartuje sa.')) return;
+
+            const btnInstall = document.getElementById('btnInstallGh');
+            const pBarBg = document.getElementById('pBarBg');
+            const pBarFill = document.getElementById('pBarFill');
+            const statusMsg = document.getElementById('statusMsg');
+
+            btnInstall.disabled = true;
+            pBarBg.style.display = 'block';
+            pBarFill.style.width = '50%';
+            statusMsg.style.display = 'block';
+            statusMsg.style.color = '#38bdf8';
+            statusMsg.innerHTML = '⏳ ESP32 sťahuje nový firmvér z GitHubu a zapisuje do flash...';
+
+            fetch('/api/ota/cloud-update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: latestDownloadUrl })
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.status === 'started' || d.status === 'ok') {
+                    pBarFill.style.width = '100%';
+                    statusMsg.style.color = '#34d399';
+                    statusMsg.innerHTML = '✅ <b>Aktualizácia prebieha!</b><br>ESP32 sa reštartuje s novou verziou. Presmerovanie za 15s...';
+                    setTimeout(() => { window.location.href = '/'; }, 15000);
+                } else {
+                    statusMsg.style.color = '#f43f5e';
+                    statusMsg.innerHTML = '❌ Aktualizácia zlyhala: ' + (d.error || 'Neznáma chyba');
+                    btnInstall.disabled = false;
+                }
+            })
+            .catch(() => {
+                // Po reštarte ESP32 spojenie spadne, čo je normálne
+                pBarFill.style.width = '100%';
+                statusMsg.style.color = '#34d399';
+                statusMsg.innerHTML = '✅ <b>Firmvér bol nahratý!</b><br>ESP32 sa reštartuje... Presmerovanie za 15s.';
+                setTimeout(() => { window.location.href = '/'; }, 15000);
+            });
+        }
+
         function onFileSelected(input) {
-            const btn = document.getElementById('btnSubmit');
+            const btn = document.getElementById('btnSubmitLocal');
             const label = document.getElementById('fileName');
             if (input.files && input.files.length > 0) {
                 const file = input.files[0];
@@ -2029,7 +2196,7 @@ static const char UPDATE_HTML[] PROGMEM = R"rawliteral(
             }
         }
 
-        function uploadFirmware() {
+        function uploadLocalFirmware() {
             const input = document.getElementById('firmwareFile');
             if (!input.files || input.files.length === 0) return;
 
@@ -2037,7 +2204,7 @@ static const char UPDATE_HTML[] PROGMEM = R"rawliteral(
             const formData = new FormData();
             formData.append('update', file);
 
-            const btn = document.getElementById('btnSubmit');
+            const btn = document.getElementById('btnSubmitLocal');
             const pBarBg = document.getElementById('pBarBg');
             const pBarFill = document.getElementById('pBarFill');
             const statusMsg = document.getElementById('statusMsg');
@@ -2046,7 +2213,7 @@ static const char UPDATE_HTML[] PROGMEM = R"rawliteral(
             pBarBg.style.display = 'block';
             statusMsg.style.display = 'block';
             statusMsg.style.color = '#38bdf8';
-            statusMsg.textContent = '⏳ Nahrávam firmvér... 0%';
+            statusMsg.textContent = '⏳ Nahrávam firmvér do ESP32... 0%';
 
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/update', true);
@@ -2064,9 +2231,7 @@ static const char UPDATE_HTML[] PROGMEM = R"rawliteral(
                     pBarFill.style.width = '100%';
                     statusMsg.style.color = '#34d399';
                     statusMsg.innerHTML = '✅ <b>Úspešne nahraté!</b><br>ESP32 sa reštartuje... Presmerovanie za 12s.';
-                    setTimeout(function() {
-                        window.location.href = '/';
-                    }, 12000);
+                    setTimeout(() => { window.location.href = '/'; }, 12000);
                 } else {
                     statusMsg.style.color = '#f43f5e';
                     statusMsg.innerHTML = '❌ <b>Chyba pri nahrávaní!</b> (Kód: ' + xhr.status + ')';
@@ -2093,24 +2258,29 @@ WebServerManager::WebServerManager()
       _anemometer(nullptr),
       _windVane(nullptr),
       _wifiService(nullptr),
-      _timeMgr(nullptr) {
+      _timeMgr(nullptr),
+      _cloudOta(nullptr) {
 }
 
-void WebServerManager::begin(const TempSensorManager* tempMgr, const Anemometer* anemometer, const WindVane* windVane, const WifiService* wifiService, const TimeManager* timeMgr) {
+void WebServerManager::begin(const TempSensorManager* tempMgr, const Anemometer* anemometer, const WindVane* windVane,
+                             const WifiService* wifiService, const TimeManager* timeMgr, CloudOtaService* cloudOta) {
     _tempMgr = tempMgr;
     _anemometer = anemometer;
     _windVane = windVane;
     _wifiService = wifiService;
     _timeMgr = timeMgr;
+    _cloudOta = cloudOta;
 
     _server.on("/", [this]() { handleRoot(); });
     _server.on("/api/live", [this]() { handleApiLive(); });
     _server.on("/update", HTTP_GET, [this]() { handleUpdatePage(); });
     _server.on("/update", HTTP_POST, [this]() { handleUpdateDone(); }, [this]() { handleUpdateUpload(); });
+    _server.on("/api/ota/check", HTTP_GET, [this]() { handleApiOtaCheck(); });
+    _server.on("/api/ota/cloud-update", HTTP_POST, [this]() { handleApiOtaCloudUpdate(); });
     _server.onNotFound([this]() { handleNotFound(); });
 
     _server.begin();
-    Serial.println("[WebServer] HTTP Web Dashboard a OTA spustený na porte 80");
+    Serial.println("[WebServer] HTTP Web Dashboard, Web OTA a Cloud OTA spustený na porte 80");
 }
 
 void WebServerManager::handleRoot() {
@@ -2159,13 +2329,64 @@ void WebServerManager::handleUpdateUpload() {
     }
 }
 
+void WebServerManager::handleApiOtaCheck() {
+    StaticJsonDocument<512> doc;
+    doc["stationId"] = Config::LOC_ID;
+    doc["currentVersion"] = Config::FIRMWARE_VERSION;
+
+    if (_cloudOta) {
+        OtaCheckResult res = _cloudOta->checkVersion();
+        doc["updateAvailable"] = res.updateAvailable;
+        doc["newVersion"] = res.newVersion;
+        doc["downloadUrl"] = res.downloadUrl;
+        doc["notes"] = res.notes;
+        doc["error"] = res.error;
+    } else {
+        doc["updateAvailable"] = false;
+        doc["error"] = "CloudOtaService nie je inicializovaný";
+    }
+
+    String json;
+    serializeJson(doc, json);
+    _server.send(200, "application/json", json);
+}
+
+void WebServerManager::handleApiOtaCloudUpdate() {
+    if (!_server.hasArg("plain")) {
+        _server.send(400, "application/json", "{\"error\":\"Missing body\"}");
+        return;
+    }
+
+    StaticJsonDocument<256> doc;
+    DeserializationError error = deserializeJson(doc, _server.arg("plain"));
+    if (error) {
+        _server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+        return;
+    }
+
+    String url = doc["url"] | "";
+    if (url.isEmpty()) {
+        _server.send(400, "application/json", "{\"error\":\"Missing URL\"}");
+        return;
+    }
+
+    _server.send(200, "application/json", "{\"status\":\"started\"}");
+    delay(500);
+
+    if (_cloudOta) {
+        _cloudOta->performUpdate(url);
+    }
+}
+
 void WebServerManager::handleApiLive() {
     if (!_tempMgr || !_anemometer || !_windVane || !_wifiService || !_timeMgr) {
         _server.send(500, "application/json", "{\"error\":\"Not initialized\"}");
         return;
     }
 
-    StaticJsonDocument<320> doc;
+    StaticJsonDocument<360> doc;
+    doc["stationId"] = Config::LOC_ID;
+    doc["version"] = Config::FIRMWARE_VERSION;
     doc["timestamp"] = _timeMgr->getFormattedCustom();
     doc["tempIn"] = _tempMgr->getTempIn();
     doc["tempOut"] = _tempMgr->getTempOut();

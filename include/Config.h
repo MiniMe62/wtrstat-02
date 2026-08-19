@@ -16,6 +16,10 @@
 #define CURRENT_SITE SITE_TEST
 
 namespace Config {
+    // Verzia firmvéru a vzdialené aktualizácie
+    constexpr const char* FIRMWARE_VERSION = "2.0.0";
+    constexpr const char* GITHUB_VERSION_URL = "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/version.json";
+
     // Sériová komunikácia
     constexpr uint32_t SERIAL_BAUD = 115200;
 

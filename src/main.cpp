@@ -13,6 +13,7 @@
 #include "UploaderService.h"
 #include "WebServerManager.h"
 #include "DisplayManager.h"
+#include "CloudOtaService.h"
 
 // Objektové inštancie modulov
 TempSensorManager tempMgr;
@@ -24,6 +25,7 @@ TimeManager timeMgr;
 DataAggregator aggregator15Min;
 DataAggregator aggregator1Min;
 UploaderService uploader;
+CloudOtaService cloudOta;
 WebServerManager webServerMgr;
 DisplayManager displayMgr;
 
@@ -154,7 +156,7 @@ void setup() {
     if (wifiOk) {
         timeMgr.syncNTP();
     }
-    webServerMgr.begin(&tempMgr, &anemometer, &windVane, &wifiService, &timeMgr);
+    webServerMgr.begin(&tempMgr, &anemometer, &windVane, &wifiService, &timeMgr, &cloudOta);
 
     // Pridanie úloh do plánovača TaskScheduler
     runner.init();

@@ -9,15 +9,17 @@
 #include "WindVane.h"
 #include "WifiService.h"
 #include "TimeManager.h"
+#include "CloudOtaService.h"
 
 /**
- * @brief Lokálny Web Server poskytujúci responsive meteo Dashboard (HTML/CSS/JS), JSON API a Web OTA Update
+ * @brief Lokálny Web Server poskytujúci responsive meteo Dashboard (HTML/CSS/JS), JSON API, Web OTA a GitHub Cloud OTA
  */
 class WebServerManager {
 public:
     WebServerManager();
 
-    void begin(const TempSensorManager* tempMgr, const Anemometer* anemometer, const WindVane* windVane, const WifiService* wifiService, const TimeManager* timeMgr);
+    void begin(const TempSensorManager* tempMgr, const Anemometer* anemometer, const WindVane* windVane,
+               const WifiService* wifiService, const TimeManager* timeMgr, CloudOtaService* cloudOta = nullptr);
     void handleClient();
 
 private:
@@ -27,14 +29,18 @@ private:
     const WindVane* _windVane;
     const WifiService* _wifiService;
     const TimeManager* _timeMgr;
+    CloudOtaService* _cloudOta;
 
     void handleRoot();
     void handleApiLive();
     void handleNotFound();
 
-    // Web OTA Update
+    // Web & Cloud OTA Update
     void handleUpdatePage();
     void handleUpdateUpload();
     void handleUpdateDone();
+    void handleApiOtaCheck();
+    void handleApiOtaCloudUpdate();
 };
+
 
