@@ -143,7 +143,14 @@ Viacúrovňová ochrana pred zápisom chybných / rušivých dát:
 
 ## 14. Webový Dashboard & GitHub Pages
 Integrovaný webový dashboard (dostupný lokálne na IP adrese stanice a verejne cez GitHub Pages v priečinku `docs/`):
-* **Vycentrovaná Veterná Ružica (Polar Area Chart):** Sever (S) je striktne zarovnaný vertikálne na 12:00 (`startAngle: -11.25`).
+* **Vycentrovaná Veterná Ružica (Polar Area Chart):** Sever (S) je striktne zarovnaný vertikálne na 12:00 (`startAngle: -11.25`) s percentuálnym vyjadrením početnosti v 16 smeroch.
+* **Graf Rýchlosti a Nárazov Vetra (ALADIN / SHMÚ štýl):**
+  - **Kombinovaný graf (Line + Bar):** Čiara zobrazuje plynulý priebeh priemernej rýchlosti vetra (`Field 6`), zatiaľ čo vertikálne stĺpce znázorňujú nárazy vetra (`Field 7 - GUST`).
+  - **Inteligentné filtrovanie nárazov:** Stĺpce nárazov nevystupujú pri každom malom zakolísaní, ale len pri výraznejších nárazoch (predvolene náraz $> 1.3\times$ priemeru a aspoň $+1.0\text{ m/s}$).
+  - **Režimy filtrovania nárazov:** Prepínanie jedným klikom: *Výrazné (>1.3×)*, *Silné (>1.5×)*, *Všetky nárazy*, *Skryť nárazy*.
+  - **Časové horizonty:** Možnosť voľby *⚡ Živé*, *📅 24h*, *📆 3d*, *🗓️ 7d* s priamym načítaním z ThingSpeak API.
+  - **Štatistické karty:** Prehľad aktuálnej rýchlosti, priemeru za vybrané obdobie, maxima nárazu (v $\text{m/s}$ aj $\text{km/h}$) a celkového počtu zaznamenaných nárazov.
+* **Časový Vývoj Smeru Vetra (Timeline):** Bodový priebeh stáčania smeru vetra v čase s farebným škálovaním podľa sily vetra (modrá = vánok, zelená = mierny, žltá = čerstvý, červená = silný vietor).
 * **Interaktívny Teplotný Graf:** Priebeh $T_{in}$ a $T_{out}$ s kubickým Bézierovým vyhladzovaním, prepínaním pohľadov (`Obe`, `Tin`, `Tout`) a automatickým prispôsobením citlivosti Y-osi.
 * **Prepínač bubliniek (`💬 Bubliny ZAP/VYP`):** Špeciálne tlačidlo v záhlaví každého grafu optimalizované pre smartfóny umožňujúce jedným ťuknutím skryť/zobraziť tooltip bublinu, aby na mobile neprekrývala krivky.
 
