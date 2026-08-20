@@ -720,6 +720,65 @@
             </div>
         </div>
 
+        <!-- Wind Speed & Gusts History Section (SHMÚ ALADIN style) -->
+        <div class="chart-box">
+            <div class="chart-header-row">
+                <div class="section-title">💨 Vývoj Rýchlosti a Nárazov Vetra</div>
+                <button class="btn-bubble-toggle active" id="btnToggleWindSpeedTooltip" onclick="toggleWindSpeedTooltip()" title="Zapnúť / Vypnúť bubliny">
+                    💬 Bubliny <span id="lblWindSpeedTooltip">ZAP</span>
+                </button>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
+                Časový priebeh priemernej rýchlosti vetra (čiara) s vloženými stĺpcami významných nárazov (štýl ALADIN / SHMÚ).
+            </p>
+
+            <!-- Control Bar (Gust Filter & Timeframe Selector) -->
+            <div class="chart-controls">
+                <div class="btn-group">
+                    <button class="btn-view active" id="btnGustThresholdSig" onclick="setGustFilter('significant')">⚡ Výrazné nárazy (&gt;1.3×)</button>
+                    <button class="btn-view" id="btnGustThresholdHigh" onclick="setGustFilter('high')">🔥 Silné (&gt;1.5×)</button>
+                    <button class="btn-view" id="btnGustThresholdAll" onclick="setGustFilter('all')">📊 Všetky nárazy</button>
+                    <button class="btn-view" id="btnGustThresholdNone" onclick="setGustFilter('none')">🚫 Skryť nárazy</button>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn-period active" id="btnWindSpeedPeriodLive" onclick="setWindSpeedPeriod('live')">⚡ Živé</button>
+                    <button class="btn-period" id="btnWindSpeedPeriod24h" onclick="setWindSpeedPeriod('24h')">📅 24h</button>
+                    <button class="btn-period" id="btnWindSpeedPeriod3d" onclick="setWindSpeedPeriod('3d')">📆 3d</button>
+                    <button class="btn-period" id="btnWindSpeedPeriod7d" onclick="setWindSpeedPeriod('7d')">🗓️ 7d</button>
+                </div>
+            </div>
+
+            <div id="windSpeedChartLoading" style="display: none; font-size: 0.82rem; color: var(--primary); text-align: center; margin: 8px 0; font-weight: 500;">
+                ⏳ Načítavam dáta rýchlosti vetra z ThingSpeak API...
+            </div>
+            <div id="windSpeedChartNotice" style="display: none; font-size: 0.82rem; color: #fbbf24; text-align: center; margin: 8px 0; background: rgba(251, 191, 36, 0.1); padding: 6px 12px; border-radius: 8px;">
+            </div>
+
+            <div class="chart-line-wrapper">
+                <canvas id="windSpeedChart"></canvas>
+            </div>
+            
+            <div class="chart-stats-grid">
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Aktuálna Rýchlosť</span>
+                    <span class="stat-badge-val" id="statSpeedCurrent" style="color: #38bdf8;">-- m/s</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Priemerná Rýchlosť</span>
+                    <span class="stat-badge-val" id="statSpeedAvg" style="color: #38bdf8;">-- m/s</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Max Náraz (GUST)</span>
+                    <span class="stat-badge-val" id="statSpeedMaxGust" style="color: #fb7185;">-- m/s</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Výrazné Nárazy</span>
+                    <span class="stat-badge-val" id="statSpeedGustCount" style="color: #fbbf24;">0</span>
+                </div>
+            </div>
+        </div>
+
         <!-- Wind Rose Section -->
         <div class="chart-box">
             <div class="chart-header-row">
@@ -1190,6 +1249,334 @@
             }
         }
 
+        // ================= GRAF RÝCHLOSTÍ A NÁRAZOV VETRA (ALADIN / SHMÚ ŠTÝL) =================
+        let windSpeedPeriod = 'live'; // 'live' | '24h' | '3d' | '7d'
+        let gustFilterMode = 'significant'; // 'significant' (>1.3x) | 'high' (>1.5x) | 'all' | 'none'
+        let windSpeedTooltipEnabled = true;
+
+        let liveSpeedLabels = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:15'];
+        let liveSpeedAvg = [1.2, 2.0, 3.5, 4.2, 5.0, 6.5, 5.8, 4.0, 2.5, 1.8, 1.0, 0.8];
+        let liveSpeedGust = [2.0, 3.2, 5.0, 6.0, 7.5, 9.2, 8.0, 5.5, 3.8, 2.6, 1.5, 1.2];
+
+        let rawSpeedLabels = [...liveSpeedLabels];
+        let rawSpeedAvg = [...liveSpeedAvg];
+        let rawSpeedGust = [...liveSpeedGust];
+
+        let windSpeedChartInstance = null;
+
+        function getFilteredGustData(speeds, gusts, mode) {
+            return gusts.map((g, i) => {
+                const avg = speeds[i];
+                if (g === null || isNaN(g) || g <= 0) return null;
+                if (avg === null || isNaN(avg)) return g;
+                if (mode === 'none') return null;
+                if (mode === 'all') return g > avg ? g : null;
+                if (mode === 'high') {
+                    return (g >= avg * 1.5 && (g - avg) >= 2.0) ? g : null;
+                }
+                // default: 'significant' (SHMÚ ALADIN) - náraz > 1.3x priemer a rozdiel min 1.0 m/s, alebo pri vánku > 2.0 m/s
+                return ((g >= avg * 1.3 && (g - avg) >= 1.0) || (avg < 1.0 && g >= 2.0)) ? g : null;
+            });
+        }
+
+        function initWindSpeedChart() {
+            const ctx = document.getElementById('windSpeedChart').getContext('2d');
+            const filteredGusts = getFilteredGustData(rawSpeedAvg, rawSpeedGust, gustFilterMode);
+
+            windSpeedChartInstance = new Chart(ctx, {
+                data: {
+                    labels: rawSpeedLabels,
+                    datasets: [
+                        {
+                            type: 'bar',
+                            label: 'Náraz vetra (GUST)',
+                            data: filteredGusts,
+                            backgroundColor: 'rgba(244, 63, 94, 0.65)',
+                            borderColor: '#f43f5e',
+                            borderWidth: 1.5,
+                            borderRadius: { topLeft: 4, topRight: 4, bottomLeft: 0, bottomRight: 0 },
+                            barPercentage: 0.35,
+                            order: 2
+                        },
+                        {
+                            type: 'line',
+                            label: 'Priemerná rýchlosť',
+                            data: rawSpeedAvg,
+                            borderColor: '#38bdf8',
+                            backgroundColor: 'rgba(56, 189, 248, 0.14)',
+                            fill: true,
+                            tension: 0.35,
+                            borderWidth: 2.2,
+                            pointRadius: 2,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: '#38bdf8',
+                            order: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    animation: {
+                        duration: 500,
+                        easing: 'easeOutQuart'
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: { size: 10, family: 'Inter' },
+                                maxRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 10
+                            }
+                        },
+                        y: {
+                            min: 0,
+                            grace: '10%',
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.06)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: { size: 11, family: 'Inter' },
+                                callback: function(val) {
+                                    return val.toFixed(1) + ' m/s';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                boxWidth: 12,
+                                color: '#94a3b8',
+                                font: { size: 11, family: 'Inter', weight: '600' }
+                            }
+                        },
+                        tooltip: {
+                            enabled: windSpeedTooltipEnabled,
+                            backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                            titleColor: '#38bdf8',
+                            titleFont: { weight: '700', size: 12 },
+                            bodyFont: { size: 12 },
+                            borderColor: 'rgba(56, 189, 248, 0.3)',
+                            borderWidth: 1,
+                            padding: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.parsed.y === null || context.parsed.y === undefined) return null;
+                                    const valMs = parseFloat(context.parsed.y);
+                                    const valKmh = (valMs * 3.6).toFixed(1);
+                                    return ` ${context.dataset.label}: ${valMs.toFixed(1)} m/s (${valKmh} km/h)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            updateWindSpeedStats();
+        }
+
+        function updateWindSpeedStats() {
+            const validAvg = rawSpeedAvg.filter(v => v !== null && !isNaN(v) && v >= 0);
+            const validGust = rawSpeedGust.filter(v => v !== null && !isNaN(v) && v >= 0);
+
+            if (validAvg.length > 0) {
+                const lastSpd = validAvg[validAvg.length - 1];
+                const avgSpd = (validAvg.reduce((a, b) => a + b, 0) / validAvg.length).toFixed(1);
+                document.getElementById('statSpeedCurrent').innerText = `${lastSpd.toFixed(1)} m/s`;
+                document.getElementById('statSpeedAvg').innerText = `${avgSpd} m/s`;
+            } else {
+                document.getElementById('statSpeedCurrent').innerText = `-- m/s`;
+                document.getElementById('statSpeedAvg').innerText = `-- m/s`;
+            }
+
+            if (validGust.length > 0) {
+                const maxGustVal = Math.max(...validGust);
+                const maxGustKmh = (maxGustVal * 3.6).toFixed(1);
+                document.getElementById('statSpeedMaxGust').innerText = `${maxGustVal.toFixed(1)} m/s (${maxGustKmh} km/h)`;
+            } else {
+                document.getElementById('statSpeedMaxGust').innerText = `-- m/s`;
+            }
+
+            const filteredGusts = getFilteredGustData(rawSpeedAvg, rawSpeedGust, gustFilterMode);
+            const gustCount = filteredGusts.filter(g => g !== null && g > 0).length;
+            document.getElementById('statSpeedGustCount').innerText = `${gustCount}`;
+        }
+
+        function setGustFilter(mode) {
+            gustFilterMode = mode;
+
+            ['btnGustThresholdSig', 'btnGustThresholdHigh', 'btnGustThresholdAll', 'btnGustThresholdNone'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('active');
+            });
+
+            if (mode === 'significant') document.getElementById('btnGustThresholdSig')?.classList.add('active');
+            if (mode === 'high') document.getElementById('btnGustThresholdHigh')?.classList.add('active');
+            if (mode === 'all') document.getElementById('btnGustThresholdAll')?.classList.add('active');
+            if (mode === 'none') document.getElementById('btnGustThresholdNone')?.classList.add('active');
+
+            renderWindSpeedChart();
+        }
+
+        function toggleWindSpeedTooltip() {
+            windSpeedTooltipEnabled = !windSpeedTooltipEnabled;
+            const btn = document.getElementById('btnToggleWindSpeedTooltip');
+            const lbl = document.getElementById('lblWindSpeedTooltip');
+            if (btn) btn.classList.toggle('active', windSpeedTooltipEnabled);
+            if (lbl) lbl.innerText = windSpeedTooltipEnabled ? 'ZAP' : 'VYP';
+            if (windSpeedChartInstance) {
+                windSpeedChartInstance.options.plugins.tooltip.enabled = windSpeedTooltipEnabled;
+                windSpeedChartInstance.update('none');
+            }
+        }
+
+        function setWindSpeedPeriod(period) {
+            windSpeedPeriod = period;
+
+            ['btnWindSpeedPeriodLive', 'btnWindSpeedPeriod24h', 'btnWindSpeedPeriod3d', 'btnWindSpeedPeriod7d'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('active');
+            });
+
+            if (period === 'live') document.getElementById('btnWindSpeedPeriodLive')?.classList.add('active');
+            if (period === '24h') document.getElementById('btnWindSpeedPeriod24h')?.classList.add('active');
+            if (period === '3d') document.getElementById('btnWindSpeedPeriod3d')?.classList.add('active');
+            if (period === '7d') document.getElementById('btnWindSpeedPeriod7d')?.classList.add('active');
+
+            document.getElementById('windSpeedChartNotice').style.display = 'none';
+
+            if (period === 'live') {
+                document.getElementById('windSpeedChartLoading').style.display = 'none';
+                rawSpeedLabels = [...liveSpeedLabels];
+                rawSpeedAvg = [...liveSpeedAvg];
+                rawSpeedGust = [...liveSpeedGust];
+                renderWindSpeedChart();
+            } else {
+                let resultsCount = 96; // 24h
+                if (period === '3d') resultsCount = 288;
+                if (period === '7d') resultsCount = 672;
+                fetchThingSpeakWindSpeedHistory(resultsCount);
+            }
+        }
+
+        function renderWindSpeedChart() {
+            if (!windSpeedChartInstance) return;
+
+            const filteredGusts = getFilteredGustData(rawSpeedAvg, rawSpeedGust, gustFilterMode);
+
+            windSpeedChartInstance.data.labels = rawSpeedLabels;
+            windSpeedChartInstance.data.datasets[0].data = filteredGusts;
+            windSpeedChartInstance.data.datasets[1].data = rawSpeedAvg;
+
+            windSpeedChartInstance.update();
+            updateWindSpeedStats();
+        }
+
+        async function fetchThingSpeakWindSpeedHistory(resultsCount) {
+            const chanId = document.getElementById('selStation').value;
+            const cfg = TS_CONFIG[chanId];
+            if (!cfg) return;
+
+            const loadingEl = document.getElementById('windSpeedChartLoading');
+            const noticeEl = document.getElementById('windSpeedChartNotice');
+            loadingEl.style.display = 'block';
+            noticeEl.style.display = 'none';
+
+            const url = `https://api.thingspeak.com/channels/${chanId}/feeds.json?api_key=${cfg.key}&results=${resultsCount}`;
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error("Chyba odpovede z ThingSpeak API");
+                const data = await res.json();
+
+                if (!data.feeds || data.feeds.length === 0) {
+                    throw new Error("Žiadne záznamy.");
+                }
+
+                let labels = [];
+                let speedSeries = [];
+                let gustSeries = [];
+
+                for (const feed of data.feeds) {
+                    if (!feed.created_at) continue;
+                    
+                    const d = new Date(feed.created_at);
+                    let label = d.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
+                    if (resultsCount > 96) {
+                        label = `${d.getDate()}.${d.getMonth() + 1}. ` + label;
+                    }
+
+                    let spd = (feed.field6 !== null && feed.field6 !== undefined && feed.field6 !== "") ? parseFloat(feed.field6) : null;
+                    let gust = (feed.field7 !== null && feed.field7 !== undefined && feed.field7 !== "") ? parseFloat(feed.field7) : null;
+
+                    // Plauzibilný filter rýchlostí (0.0 až 50.0 m/s)
+                    if (spd !== null && (isNaN(spd) || spd < 0 || spd > 50.0)) spd = null;
+                    if (gust !== null && (isNaN(gust) || gust < 0 || gust > 55.0)) gust = null;
+
+                    // Ak nemáme gust, ale máme rýchlosť, nastavíme gust na rýchlosť
+                    if (gust === null && spd !== null) gust = spd;
+
+                    labels.push(label);
+                    speedSeries.push(spd);
+                    gustSeries.push(gust);
+                }
+
+                loadingEl.style.display = 'none';
+
+                if (labels.length === 0) {
+                    noticeEl.innerText = `ℹ️ Stanica ${cfg.name} nemá v zvolenom období záznamy o rýchlosti vetra.`;
+                    noticeEl.style.display = 'block';
+                    return;
+                }
+
+                rawSpeedLabels = labels;
+                rawSpeedAvg = speedSeries;
+                rawSpeedGust = gustSeries;
+                renderWindSpeedChart();
+
+            } catch (err) {
+                loadingEl.style.display = 'none';
+                noticeEl.innerText = `⚠️ Nepodarilo sa načítať rýchlosť vetra: ${err.message}`;
+                noticeEl.style.display = 'block';
+            }
+        }
+
+        function addLiveWindSpeedSample(timeLabel, speed, maxSpeed) {
+            if (speed === null || isNaN(speed) || speed < 0 || speed > 50.0) return;
+            const gust = (maxSpeed !== null && !isNaN(maxSpeed) && maxSpeed >= speed) ? maxSpeed : speed;
+
+            liveSpeedLabels.push(timeLabel);
+            liveSpeedAvg.push(speed);
+            liveSpeedGust.push(gust);
+
+            if (liveSpeedLabels.length > 25) {
+                liveSpeedLabels.shift();
+                liveSpeedAvg.shift();
+                liveSpeedGust.shift();
+            }
+
+            if (windSpeedPeriod === 'live') {
+                rawSpeedLabels = [...liveSpeedLabels];
+                rawSpeedAvg = [...liveSpeedAvg];
+                rawSpeedGust = [...liveSpeedGust];
+                renderWindSpeedChart();
+            }
+        }
+
         // ================= VETERNÁ RUŽICA =================
         let currentPeriod = 'live'; // 'live' | '24h' | '3d' | '7d'
 
@@ -1405,6 +1792,9 @@
         function onStationOrPeriodChange() {
             if (currentPeriod !== 'live') {
                 setPeriod(currentPeriod);
+            }
+            if (windSpeedPeriod !== 'live') {
+                setWindSpeedPeriod(windSpeedPeriod);
             }
             if (windTimelinePeriod !== 'live') {
                 setWindTimelinePeriod(windTimelinePeriod);
@@ -2041,6 +2431,12 @@
                 addLiveWindTimelineSample(timeLabel, chosenData.windDirDeg, chosenData.windSpeed, chosenData.windSpeedMax || chosenData.windSpeed);
             }
 
+            // Pridáme vzorku do Grafu Rýchlosti a Nárazov Vetra
+            if (chosenData.windSpeed !== null && chosenData.windSpeed !== undefined && !isNaN(chosenData.windSpeed)) {
+                const timeLabel = new Date().toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
+                addLiveWindSpeedSample(timeLabel, chosenData.windSpeed, chosenData.windSpeedMax || chosenData.windSpeed);
+            }
+
             // Pridáme vzorku do Teplotného Grafu
             if ((chosenData.tempIn !== null && chosenData.tempIn !== undefined && !isNaN(chosenData.tempIn)) ||
                 (chosenData.tempOut !== null && chosenData.tempOut !== undefined && !isNaN(chosenData.tempOut))) {
@@ -2052,6 +2448,7 @@
         // Inicializácia grafov pri štarte stránky
         window.addEventListener('DOMContentLoaded', () => {
             initTempLineChart();
+            initWindSpeedChart();
             initWindRoseChart();
             initWindTimelineChart();
             fetchLive();
