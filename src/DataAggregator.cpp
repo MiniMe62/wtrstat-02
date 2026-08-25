@@ -24,9 +24,12 @@ void DataAggregator::reset() {
     _windSpeedSum = 0.0;
     _windSpeedMax = 0.0f;
     _windSpeedCount = 0;
+
+    _lightSum = 0.0;
+    _lightCount = 0;
 }
 
-void DataAggregator::sample(const TempSensorManager& tempMgr, const Anemometer& anemometer, WindVane& windVane) {
+void DataAggregator::sample(const TempSensorManager& tempMgr, const Anemometer& anemometer, WindVane& windVane, const LightSensor& lightSensor) {
     if (tempMgr.isReadValid()) {
         _tempInSum += tempMgr.getTempIn();
         _tempInCount++;
@@ -44,6 +47,10 @@ void DataAggregator::sample(const TempSensorManager& tempMgr, const Anemometer& 
 
     // Veternú ružicu akumuluje priamo trieda WindVane (goniometricky)
     windVane.update();
+
+    // Jas / intenzita slnečného svitu (v percentách 0 - 100%)
+    _lightSum += lightSensor.getBrightnessPercent();
+    _lightCount++;
 }
 
 WeatherSnapshot DataAggregator::finalizeSnapshot(time_t markTimestamp, const WindVane& windVane) {
@@ -63,7 +70,10 @@ WeatherSnapshot DataAggregator::finalizeSnapshot(time_t markTimestamp, const Win
     snap.windDirDeg = windVane.getAveragedAngle();
     snap.windDirName = windVane.getAveragedDirName();
 
-    snap.isValid = (_tempInCount > 0 || _windSpeedCount > 0);
+    // Priemerný jas za danú periódu
+    snap.light = (_lightCount > 0) ? (float)(_lightSum / _lightCount) : 0.0f;
+
+    snap.isValid = (_tempInCount > 0 || _windSpeedCount > 0 || _lightCount > 0);
 
     return snap;
 }

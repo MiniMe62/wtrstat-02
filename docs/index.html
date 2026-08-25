@@ -581,6 +581,12 @@
                     </div>
                 </div>
             </div>
+
+            <div class="card">
+                <div class="card-header">Jas a Slnko <span id="skyConditionBadge" style="background: rgba(251, 191, 36, 0.2); color: #fbbf24; padding: 2px 6px; border-radius: 6px; font-size: 0.75rem;">--</span></div>
+                <div class="card-val" id="lightPercent">-- <span class="unit">%</span></div>
+                <div class="card-sub" id="sunshineDuration">Senzor jasu TEMT6000</div>
+            </div>
         </div>
 
         <!-- Detailed Table -->
@@ -626,6 +632,12 @@
                             <td class="val-highlight" id="tblWindDirName">--</td>
                             <td>Sektor</td>
                             <td>Goniometrický priemer</td>
+                        </tr>
+                        <tr>
+                            <td>Jas oblohy (Intenzita)</td>
+                            <td class="val-highlight" id="tblLight">--</td>
+                            <td>%</td>
+                            <td>TEMT6000 ADC (GPIO 35)</td>
                         </tr>
                         <tr>
                             <td>Pripojená WiFi sieť</td>
@@ -2236,6 +2248,24 @@
                 document.getElementById('arrow').style.transform = `rotate(${data.windDirDeg}deg)`;
             }
 
+            if (document.getElementById('lightPercent')) {
+                if (data.light !== null && data.light !== undefined && !isNaN(data.light)) {
+                    const lVal = Number(data.light);
+                    document.getElementById('lightPercent').innerHTML = lVal.toFixed(0) + ' <span class="unit">%</span>';
+                    let cond = 'Noc / Tma';
+                    if (lVal >= 70) cond = 'Priame slnko';
+                    else if (lVal >= 35) cond = 'Polooblačno';
+                    else if (lVal >= 12) cond = 'Oblačno';
+                    else if (lVal >= 3) cond = 'Husto zamračené';
+                    document.getElementById('skyConditionBadge').innerText = cond;
+                    if (document.getElementById('tblLight')) document.getElementById('tblLight').innerText = lVal.toFixed(1) + ' % (' + cond + ')';
+                } else {
+                    document.getElementById('lightPercent').innerHTML = '-- <span class="unit">%</span>';
+                    document.getElementById('skyConditionBadge').innerText = '--';
+                    if (document.getElementById('tblLight')) document.getElementById('tblLight').innerText = '--';
+                }
+            }
+
             // Table Update
             document.getElementById('tblTempIn').innerText = tempInFormatted;
             document.getElementById('tblTempOut').innerText = tempOutFormatted;
@@ -2355,11 +2385,15 @@
                                 dirName = ROSE_DIRS[Math.round(((dir % 360) / 22.5)) % 16];
                             }
 
+                            let lightVal = null;
                             if (lastFeed.status) {
                                 try {
                                     const stObj = JSON.parse(lastFeed.status);
                                     if (stObj.dir && stObj.dir.includes('/')) {
                                         dirName = stObj.dir.split('/')[0];
+                                    }
+                                    if (stObj.light !== undefined && stObj.light !== null && stObj.light !== "") {
+                                        lightVal = parseFloat(stObj.light);
                                     }
                                 } catch(e) {}
                             }
@@ -2379,6 +2413,7 @@
                                 windSpeed: (spd !== null && !isNaN(spd)) ? spd : null,
                                 windSpeedMax: (spdMax !== null && !isNaN(spdMax)) ? spdMax : null,
                                 rain: (rn !== null && !isNaN(rn)) ? rn : null,
+                                light: lightVal,
                                 timestamp: tsTime ? tsTime.toLocaleString('sk-SK', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString(),
                                 source: `ThingSpeak (${cfg.name})`,
                                 sourceDetail: `ThingSpeak kanál ${chanId} (${cfg.name})`

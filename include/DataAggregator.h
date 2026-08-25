@@ -5,6 +5,7 @@
 #include "TempSensorManager.h"
 #include "Anemometer.h"
 #include "WindVane.h"
+#include "LightSensor.h"
 
 /**
  * @brief Sumárne namerané dáta pre 15-minútovú záverku
@@ -20,7 +21,7 @@ struct WeatherSnapshot {
     float windDirDeg;
     String windDirName;
     float rain = 0.0f;      // Zrážky
-    float light = 0.0f;     // Jas (do JSON)
+    float light = 0.0f;     // Jas (relatívne percento 0-100% alebo mV)
     bool isValid;
 };
 
@@ -32,7 +33,7 @@ public:
     DataAggregator();
 
     void begin();
-    void sample(const TempSensorManager& tempMgr, const Anemometer& anemometer, WindVane& windVane);
+    void sample(const TempSensorManager& tempMgr, const Anemometer& anemometer, WindVane& windVane, const LightSensor& lightSensor);
 
     WeatherSnapshot finalizeSnapshot(time_t markTimestamp, const WindVane& windVane);
     void reset();
@@ -47,4 +48,7 @@ private:
     double _windSpeedSum;
     float _windSpeedMax;
     uint32_t _windSpeedCount;
+
+    double _lightSum;
+    uint32_t _lightCount;
 };

@@ -578,11 +578,17 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     <div class="compass-dial">
                         <div class="compass-arrow" id="arrow">↑</div>
                     </div>
-                    <div>
-                        <div class="card-val" style="margin:0; font-size:2.2rem; font-weight:700;" id="windDirNameText">--</div>
-                        <div class="card-sub" style="font-size:0.95rem; font-weight:600; color:var(--primary);" id="windDirDeg">--°</div>
+                    <div class="compass-details">
+                        <div class="card-val" id="windDirNameText" style="font-size: 1.5rem;">--</div>
+                        <div class="card-sub" id="windDirDeg">--°</div>
                     </div>
                 </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">Jas a Slnko <span id="skyConditionBadge" style="background: rgba(251, 191, 36, 0.2); color: #fbbf24; padding: 2px 6px; border-radius: 6px; font-size: 0.75rem;">--</span></div>
+                <div class="card-val" id="lightPercent">-- <span class="unit">%</span></div>
+                <div class="card-sub" id="sunshineDuration">Dnešný svit: --</div>
             </div>
         </div>
 
@@ -629,6 +635,18 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                             <td class="val-highlight" id="tblWindDirName">--</td>
                             <td>Sektor</td>
                             <td>Goniometrický priemer</td>
+                        </tr>
+                        <tr>
+                            <td>Jas oblohy (Intenzita)</td>
+                            <td class="val-highlight" id="tblLight">--</td>
+                            <td>%</td>
+                            <td>TEMT6000 ADC (GPIO 35)</td>
+                        </tr>
+                        <tr>
+                            <td>Denný slnečný svit</td>
+                            <td class="val-highlight" id="tblSun">--</td>
+                            <td>h:min</td>
+                            <td>Kumulatívne počítadlo svitu</td>
                         </tr>
                         <tr>
                             <td>Pripojená WiFi sieť</td>
@@ -1834,12 +1852,24 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 document.getElementById('windDirDeg').innerText = degFormatted;
                 document.getElementById('arrow').style.transform = `rotate(${data.windDirDeg}deg)`;
 
+                if (data.lightPercent !== undefined) {
+                    document.getElementById('lightPercent').innerHTML = data.lightPercent.toFixed(0) + ' <span class="unit">%</span>';
+                    document.getElementById('skyConditionBadge').innerText = data.skyCondition || '--';
+                    document.getElementById('sunshineDuration').innerText = 'Dnešný svit: ' + (data.sunshineDuration || '--');
+                }
+
                 // Table Update
                 document.getElementById('tblTempIn').innerText = tempInFormatted;
                 document.getElementById('tblTempOut').innerText = tempOutFormatted;
                 document.getElementById('tblWindSpeed').innerText = speedFormatted;
                 document.getElementById('tblWindDirDeg').innerText = degFormatted;
                 document.getElementById('tblWindDirName').innerText = data.windDirName;
+                if (document.getElementById('tblLight')) {
+                    document.getElementById('tblLight').innerText = (data.lightPercent !== undefined) ? (data.lightPercent.toFixed(1) + ' % (' + data.skyCondition + ')') : '--';
+                }
+                if (document.getElementById('tblSun')) {
+                    document.getElementById('tblSun').innerText = data.sunshineDuration || '--';
+                }
                 document.getElementById('tblWifiSSID').innerText = data.wifiSSID;
                 document.getElementById('tblWifiRSSI').innerText = data.rssi + ' dBm';
                 document.getElementById('tblIp').innerText = data.ip;
@@ -2257,16 +2287,19 @@ WebServerManager::WebServerManager()
       _tempMgr(nullptr),
       _anemometer(nullptr),
       _windVane(nullptr),
+      _lightSensor(nullptr),
       _wifiService(nullptr),
       _timeMgr(nullptr),
       _cloudOta(nullptr) {
 }
 
 void WebServerManager::begin(const TempSensorManager* tempMgr, const Anemometer* anemometer, const WindVane* windVane,
-                             const WifiService* wifiService, const TimeManager* timeMgr, CloudOtaService* cloudOta) {
+                             const WifiService* wifiService, const TimeManager* timeMgr, CloudOtaService* cloudOta,
+                             const LightSensor* lightSensor) {
     _tempMgr = tempMgr;
     _anemometer = anemometer;
     _windVane = windVane;
+    _lightSensor = lightSensor;
     _wifiService = wifiService;
     _timeMgr = timeMgr;
     _cloudOta = cloudOta;
@@ -2384,7 +2417,7 @@ void WebServerManager::handleApiLive() {
         return;
     }
 
-    StaticJsonDocument<360> doc;
+    StaticJsonDocument<512> doc;
     doc["stationId"] = Config::LOC_ID;
     doc["version"] = Config::FIRMWARE_VERSION;
     doc["timestamp"] = _timeMgr->getFormattedCustom();
@@ -2397,6 +2430,15 @@ void WebServerManager::handleApiLive() {
     doc["rssi"] = _wifiService->getRSSI();
     doc["ip"] = _wifiService->getIPAddress();
     doc["uptimeSec"] = millis() / 1000;
+
+    if (_lightSensor) {
+        doc["lightPercent"] = _lightSensor->getBrightnessPercent();
+        doc["lightMv"] = _lightSensor->getMilliVolts();
+        doc["estimatedLux"] = _lightSensor->getEstimatedLux();
+        doc["skyCondition"] = _lightSensor->getSkyCondition();
+        doc["sunshineDuration"] = _lightSensor->getSunshineFormatted();
+        doc["isDirectSun"] = _lightSensor->isDirectSun();
+    }
 
     String json;
     serializeJson(doc, json);

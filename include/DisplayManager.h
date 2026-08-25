@@ -10,6 +10,7 @@
 #include "TempSensorManager.h"
 #include "Anemometer.h"
 #include "WindVane.h"
+#include "LightSensor.h"
 #include "WifiService.h"
 #include "TimeManager.h"
 
@@ -24,6 +25,7 @@ public:
     void update(const TempSensorManager& tempMgr,
                 const Anemometer& anemometer,
                 const WindVane& windVane,
+                const LightSensor& lightSensor,
                 const WifiService& wifiService,
                 const TimeManager& timeMgr);
 

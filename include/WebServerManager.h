@@ -7,6 +7,7 @@
 #include "TempSensorManager.h"
 #include "Anemometer.h"
 #include "WindVane.h"
+#include "LightSensor.h"
 #include "WifiService.h"
 #include "TimeManager.h"
 #include "CloudOtaService.h"
@@ -19,7 +20,8 @@ public:
     WebServerManager();
 
     void begin(const TempSensorManager* tempMgr, const Anemometer* anemometer, const WindVane* windVane,
-               const WifiService* wifiService, const TimeManager* timeMgr, CloudOtaService* cloudOta = nullptr);
+               const WifiService* wifiService, const TimeManager* timeMgr, CloudOtaService* cloudOta = nullptr,
+               const LightSensor* lightSensor = nullptr);
     void handleClient();
 
 private:
@@ -27,6 +29,7 @@ private:
     const TempSensorManager* _tempMgr;
     const Anemometer* _anemometer;
     const WindVane* _windVane;
+    const LightSensor* _lightSensor;
     const WifiService* _wifiService;
     const TimeManager* _timeMgr;
     CloudOtaService* _cloudOta;

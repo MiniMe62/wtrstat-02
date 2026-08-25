@@ -14,7 +14,7 @@
 #define SITE_RU48        4  // Ostrá produkcia mesto
 
 // Vyberte aktívny profil pre kompiláciu:
-#define CURRENT_SITE SITE_TEST_VIDIEK
+#define CURRENT_SITE SITE_TEST_MESTO
 
 namespace Config {
     // Verzia firmvéru a vzdialené aktualizácie
@@ -29,7 +29,7 @@ namespace Config {
 
     // Bezpečnostný prepínač pre simuláciu odosielania (Dry Run)
     // Ak true: Dáta sa iba vypíšu do sériového monitora, no NEODOSLÚ sa do žiadneho cloudu.
-    constexpr bool DRY_RUN_UPLOAD = false; // Nastavte na false pre bežný beh
+    constexpr bool DRY_RUN_UPLOAD = true; // Nastavte na false pre bežný beh
 
     // Štruktúra pre WiFi prístupový bod
     struct WifiAp {
@@ -125,6 +125,17 @@ namespace Config {
 
     // Rozlíšenie DS18B20 (10 = 0.25°C)
     constexpr uint8_t TEMP_RESOLUTION_BITS = 10;
+
+    // Kalibrácia a nastavenie TEMT6000 senzora jasu
+    constexpr float LIGHT_LOAD_RESISTOR_OHMS = 20000.0f;  // Paralelný odpor na module (20 kOhm)
+    constexpr uint32_t LIGHT_ADC_ZERO_OFFSET_MV = 142;    // Hardvérový posun ESP32 ADC pri nulovom napätí (142 mV)
+    constexpr bool DEBUG_LIGHT_SENSOR = true;              // Zapína periodický výpis hodnôt jasu do Serial monitora
+
+    // Prahové hodnoty osvetlenia (deliace hranice v mV, kde 3000 mV = 100% jas)
+    constexpr uint32_t LIGHT_TH_NIGHT_MV = 80;             // Hranica: Noc -> Husto zamračené (< 80 mV)
+    constexpr uint32_t LIGHT_TH_OVERCAST_MV = 350;         // Hranica: Husto zamračené -> Oblačno (80 - 349 mV)
+    constexpr uint32_t LIGHT_TH_CLOUDY_MV = 1000;          // Hranica: Oblačno -> Polooblačno (350 - 999 mV)
+    constexpr uint32_t LIGHT_TH_SUNNY_MV = 2000;           // Hranica: Polooblačno -> Priame slnko (>= 2000 mV)
 
     // Debug prepínače
     constexpr bool DEBUG_ENABLE = true;

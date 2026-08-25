@@ -7,6 +7,7 @@
 #include "TempSensorManager.h"
 #include "Anemometer.h"
 #include "WindVane.h"
+#include "LightSensor.h"
 #include "WifiService.h"
 #include "TimeManager.h"
 #include "DataAggregator.h"
@@ -19,6 +20,7 @@
 TempSensorManager tempMgr;
 Anemometer anemometer(Pinout::HALL_SENSOR);
 WindVane windVane(Pinout::WIND_VANE_PIN);
+LightSensor lightSensor(Pinout::LIGHT_SENSOR_PIN, Config::LIGHT_LOAD_RESISTOR_OHMS);
 
 WifiService wifiService;
 TimeManager timeMgr;
@@ -42,8 +44,10 @@ void cbCloudOtaAutoCheck();
 void cbSensorRead() {
     tempMgr.update();
     anemometer.update();
-    aggregator15Min.sample(tempMgr, anemometer, windVane);
-    aggregator1Min.sample(tempMgr, anemometer, windVane);
+    lightSensor.update();
+    lightSensor.updateSunshineDuration(timeMgr.getLocalTime());
+    aggregator15Min.sample(tempMgr, anemometer, windVane, lightSensor);
+    aggregator1Min.sample(tempMgr, anemometer, windVane, lightSensor);
 }
 
 // 2a. Kontrola 15-minútového intervalu každú sekundu
@@ -123,9 +127,15 @@ void cbPrintLiveWindDebug() {
     windVane.printLiveDebug();
 }
 
+void cbPrintLiveLightDebug() {
+    if (Config::DEBUG_LIGHT_SENSOR) {
+        lightSensor.printLiveDebug();
+    }
+}
+
 void cbDisplayUpdate() {
     if (Config::ENABLE_OLED) {
-        displayMgr.update(tempMgr, anemometer, windVane, wifiService, timeMgr);
+        displayMgr.update(tempMgr, anemometer, windVane, lightSensor, wifiService, timeMgr);
     }
 }
 
@@ -164,6 +174,7 @@ Task tNtpSync(3600000, TASK_FOREVER, &cbNtpPeriodicSync); // Každú 1 hodinu
 Task tCloudOtaBootCheck(120000, TASK_ONCE, &cbCloudOtaAutoCheck); // Jednorazová kontrola 2 minúty po štarte
 Task tWindDebug(2000, TASK_FOREVER, &cbPrintWindDebug); // Debug WindVane každých 10 sekúnd (len pre vývoj, vypnúť v produkcii) 
 Task tLiveWindDebug(2000, TASK_FOREVER, &cbPrintLiveWindDebug);
+Task tLiveLightDebug(2000, TASK_FOREVER, &cbPrintLiveLightDebug);
 
 void setup() {
     Serial.begin(Config::SERIAL_BAUD);
@@ -179,9 +190,10 @@ void setup() {
 
     // Inicializácia senzorických modulov
     tempMgr.begin();
-    anemometer.setDebug(true); // Aktivuje debug výpisy každých 5s
+    anemometer.setDebug(false); // Dočasne vypnuté pre čistý Serial monitor
     anemometer.begin();
     windVane.begin();
+    lightSensor.begin();
     aggregator15Min.begin();
     aggregator1Min.begin();
 
@@ -192,7 +204,7 @@ void setup() {
     if (wifiOk) {
         timeMgr.syncNTP();
     }
-    webServerMgr.begin(&tempMgr, &anemometer, &windVane, &wifiService, &timeMgr, &cloudOta);
+    webServerMgr.begin(&tempMgr, &anemometer, &windVane, &wifiService, &timeMgr, &cloudOta, &lightSensor);
 
     // Pridanie úloh do plánovača TaskScheduler
     runner.init();
@@ -204,6 +216,7 @@ void setup() {
     runner.addTask(tCloudOtaBootCheck);
     runner.addTask(tWindDebug); // Len pre vývoj, vypnúť v produkcii
     runner.addTask(tLiveWindDebug); // Len pre vývoj, vypnúť v produkcii
+    runner.addTask(tLiveLightDebug);
 
     tSensorRead.enable();
     if (Config::ENABLE_OLED) {
@@ -217,8 +230,11 @@ void setup() {
     if (Config::AUTO_UPDATE_FROM_GITHUB) {
         tCloudOtaBootCheck.enableDelayed(2 * 60 * 1000);
     }
-    tWindDebug.enable(); // Len pre vývoj, vypnúť v produkcii
-    tLiveWindDebug.enable(); // Len pre vývoj, vypnúť v produkcii
+    // tWindDebug.enable(); // Dočasne vypnuté pre prehľadný debug LightSensora
+    // tLiveWindDebug.enable(); // Dočasne vypnuté pre prehľadný debug LightSensora
+    if (Config::DEBUG_LIGHT_SENSOR) {
+        tLiveLightDebug.enable();
+    }
 
     Serial.printf("[%s] [Setup] Všetky sub-systémy úspešne inicializované!\n\n",
                   timeMgr.getFormattedCustom().c_str());

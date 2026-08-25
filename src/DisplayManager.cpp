@@ -118,6 +118,7 @@ void DisplayManager::sleep() {
 void DisplayManager::update(const TempSensorManager& tempMgr,
                             const Anemometer& anemometer,
                             const WindVane& windVane,
+                            const LightSensor& lightSensor,
                             const WifiService& wifiService,
                             const TimeManager& timeMgr) {
     if (!_isInitialized || !_isScreenOn) return;
@@ -152,23 +153,38 @@ void DisplayManager::update(const TempSensorManager& tempMgr,
     // === 2. Meteo hodnoty (Telo displeja) ===
     _display.setTextColor(SSD1306_WHITE);
 
-    // Riadok 1: Teploty (Tin a Tout)
-    _display.setCursor(0, 14);
-    _display.printf("Tin:  %5.2f %cC", tempMgr.getTempIn(), (char)247);
+    // Riadok 1: Vnútorná teplota (vľavo) | Jas (vpravo)
+    _display.setCursor(0, 13);
+    _display.printf("Tin: %4.1f%cC", tempMgr.getTempIn(), (char)247);
+    _display.setCursor(72, 13);
+    _display.printf("Jas:%3.0f%%", lightSensor.getBrightnessPercent());
 
-    _display.setCursor(0, 26);
-    _display.printf("Tout: %5.2f %cC", tempMgr.getTempOut(), (char)247);
+    // Riadok 2: Vonkajšia teplota (vľavo) | Denný svit (vpravo)
+    _display.setCursor(0, 24);
+    _display.printf("Tout:%4.1f%cC", tempMgr.getTempOut(), (char)247);
+    _display.setCursor(72, 24);
+    _display.printf("Svit:%s", lightSensor.getSunshineFormatted().c_str());
 
-    // Riadok 3: Vietor (Rýchlosť)
-    _display.setCursor(0, 39);
-    _display.printf("Wind: %4.1f m/s", anemometer.getWindSpeed());
+    // Riadok 3: Vietor (vľavo) | Stav oblohy skratka (vpravo)
+    _display.setCursor(0, 35);
+    _display.printf("Wind:%3.1fm/s", anemometer.getWindSpeed());
+    _display.setCursor(72, 35);
+    _display.printf("Stav:%s", lightSensor.isDirectSun() ? "Slnko" : (lightSensor.getBrightnessPercent() < 3.0f ? "Tma" : "Oblak"));
 
     // Riadok 4: Smer vetra
-    _display.setCursor(0, 52);
-    _display.printf("Dir:  %-4s (%3.0f%c)", 
+    _display.setCursor(0, 46);
+    _display.printf("Dir: %-4s (%3.0f%c)", 
                     windVane.getInstantDirName(), 
                     windVane.getInstantAngle(), 
                     (char)247);
+
+    // Riadok 5: Vizuálny ukazovateľ intenzity svetla (Progress bar 0-100%)
+    _display.drawRect(0, 57, 128, 7, SSD1306_WHITE);
+    int barW = (int)((lightSensor.getBrightnessPercent() / 100.0f) * 124.0f);
+    if (barW > 124) barW = 124;
+    if (barW > 0) {
+        _display.fillRect(2, 59, barW, 3, SSD1306_WHITE);
+    }
 
     _display.display();
 }

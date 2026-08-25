@@ -379,5 +379,36 @@ V priečinku `google_script/Code.gs` je pripravený skript pre automatické ukla
 4. Spravte `git push`.
 5. V Adafruit IO stlačte tlačidlo **`UPDATE`** $\rightarrow$ stanica na vidieku do 60s prejde z testovacieho profilu na ostrú produkciu.
 
+---
+
+## 19. Senzor intenzity osvetlenia a slnečného svitu (TEMT6000 / ALS-PT19)
+
+Do stanice bol úspešne integrovaný analógový senzor okolitého svetla a detekcie slnečného svitu.
+
+### 1. Hardvérové špecifiká a otočené zapojenie (Breakout PCB):
+* **Súčiastka:** Everlight ALS-PT19-315C (puzdro SMD 1206 na fialovom breakout module).
+* **Zistená polarita:** Moduly z AliExpressu majú často prehodenú orientáciu potlače (`S`, `G`, `V`) voči internému zapojeniu čipu.
+* **Správne overené zapojenie do ESP32:**
+  * **Pin `S`:** Pripojený na **+3.3V** (napájanie).
+  * **Pin `G`:** Pripojený na **GND** (zem).
+  * **Pin `V`:** Výstup signálu pripojený na **GPIO 35 (ADC1)** + **paralelný zaťažovací odpor $20\text{ k}\Omega$ do GND**.
+* **Voľba odporu $20\text{ k}\Omega$:** 
+  * Zabezpečuje bleskový pád na $0\text{ V}$ v tme bez plávania náboja.
+  * Na priamom poludňajšom letnom slnku generuje napätie cca **$2.80\text{ V}$** ($93\,\%$ rozsahu ESP32), čím využíva maximum citlivosti a nehrozí presýtenie (clipping).
+
+### 2. Softvérové spracovanie (`LightSensor`):
+* **50 Hz AC Filter:** Pre elimináciu pulzovania umelého osvetlenia (sieťová frekvencia 50 Hz / 100 Hz blikanie žiariviek a LED) sa robí 20 vzoriek s odstupom 1 ms (celé 20 ms AC okno).
+* **Kompenzácia nulového posunu ESP32:** Odpočítava hardvérový offset $142\text{ mV}$ na vstupe GPIO 35 (`LIGHT_ADC_ZERO_OFFSET_MV`).
+* **Sledovanie slnečného svitu (Sunshine Duration - Campbell-Stokes princíp):**
+  * Každú minútu, kedy je obloha vyhodnotená ako `isDirectSun()` ($\ge 70\,\%$ jasu), sa pripočíta 1 minúta svitu.
+  * O polnoci sa počítadlo automaticky zaznamená a vynuluje pre nový deň (`updateSunshineDuration()`).
+
+### 3. Zobrazenie a výstupy:
+* **OLED Displej (128x64):** Zobrazuje jas v %, denný svit (napr. `5h 12m`), textový stav oblohy a dynamický spodný progress-bar intenzity svetla.
+* **Lokálny Web Dashboard (HTTP):** Samostatná karta `Jas a Slnko`, farebný odznak stavu oblohy a riadky v detailnej tabuľke.
+* **JSON API (`/api/live`):** `lightPercent`, `lightMv`, `estimatedLux`, `skyCondition`, `sunshineDuration`, `isDirectSun`.
+* **ThingSpeak & Adafruit IO:** Odosielanie priemernej hodnoty jasu v 1-minútových a 15-minútových záverkách.
+
+
 
 
