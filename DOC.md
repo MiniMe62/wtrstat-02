@@ -389,9 +389,9 @@ Do stanice bol úspešne integrovaný analógový senzor okolitého svetla a det
 * **Súčiastka:** Everlight ALS-PT19-315C (puzdro SMD 1206 na fialovom breakout module).
 * **Zistená polarita:** Moduly z AliExpressu majú často prehodenú orientáciu potlače (`S`, `G`, `V`) voči internému zapojeniu čipu.
 * **Správne overené zapojenie do ESP32:**
-  * **Pin `S`:** Pripojený na **+3.3V** (napájanie).
-  * **Pin `G`:** Pripojený na **GND** (zem).
-  * **Pin `V`:** Výstup signálu pripojený na **GPIO 35 (ADC1)** + **paralelný zaťažovací odpor $20\text{ k}\Omega$ do GND**.
+  * **Pin `S`:** Pripojený na **+3.3V** (napájanie). **HNEDÝ**
+  * **Pin `G`:** Pripojený na **GND** (zem). **ZELENÝ**
+  * **Pin `V`:** Výstup signálu pripojený na **GPIO 35 (ADC1)** + **paralelný zaťažovací odpor $20\text{ k}\Omega$ do GND**.  **ŽLTÝ**
 * **Voľba odporu $20\text{ k}\Omega$:** 
   * Zabezpečuje bleskový pád na $0\text{ V}$ v tme bez plávania náboja.
   * Na priamom poludňajšom letnom slnku generuje napätie cca **$2.80\text{ V}$** ($93\,\%$ rozsahu ESP32), čím využíva maximum citlivosti a nehrozí presýtenie (clipping).
