@@ -31,6 +31,7 @@ bool UploaderService::send15MinSnapshot(const WeatherSnapshot& snap, const TimeM
     Serial.printf("  - TempOut: %.2f °C\n", snap.tempOut);
     Serial.printf("  - Vetor:   %.2f m/s (Max: %.2f m/s)\n", snap.windSpeedAvg, snap.windSpeedMax);
     Serial.printf("  - Smer:    %.1f° (%s)\n", snap.windDirDeg, snap.windDirName.c_str());
+    Serial.printf("  - Zrážky:  %.2f mm (Dnes: %.2f mm, Intenzita: %.2f mm/h)\n", snap.rain, snap.rainDaily, snap.rainRate);
     Serial.println("==========================================");
 
     if (Config::DRY_RUN_UPLOAD) {
@@ -74,12 +75,14 @@ bool UploaderService::sendToGoogleSheets(const WeatherSnapshot& snap, const Time
     HTTPClient http;
 
     // Formátovanie s garanciou dvoch desatinných miest (napr. 22.00, 22.25)
-    char bufIn[16], bufOut[16], bufWind[16], bufWindMax[16], bufDeg[16];
+    char bufIn[16], bufOut[16], bufWind[16], bufWindMax[16], bufDeg[16], bufRain[16], bufRainDaily[16];
     snprintf(bufIn, sizeof(bufIn), "%.2f", snap.tempIn);
     snprintf(bufOut, sizeof(bufOut), "%.2f", snap.tempOut);
     snprintf(bufWind, sizeof(bufWind), "%.1f", snap.windSpeedAvg);
     snprintf(bufWindMax, sizeof(bufWindMax), "%.1f", snap.windSpeedMax);
     snprintf(bufDeg, sizeof(bufDeg), "%.0f", snap.windDirDeg);
+    snprintf(bufRain, sizeof(bufRain), "%.2f", snap.rain);
+    snprintf(bufRainDaily, sizeof(bufRainDaily), "%.2f", snap.rainDaily);
 
     StaticJsonDocument<384> doc;
     doc["timestamp"] = timeMgr.getFormattedLocal(snap.timestamp);
@@ -90,6 +93,8 @@ bool UploaderService::sendToGoogleSheets(const WeatherSnapshot& snap, const Time
     doc["windSpeedMax"] = bufWindMax;
     doc["windDirDeg"] = bufDeg;
     doc["windDirName"] = snap.windDirName;
+    doc["rain"] = bufRain;
+    doc["rainDaily"] = bufRainDaily;
 
     String jsonString;
     serializeJson(doc, jsonString);
@@ -141,10 +146,12 @@ bool UploaderService::sendToThingSpeak(const WeatherSnapshot& snap, const TimeMa
     char dirCombo[16];
     snprintf(dirCombo, sizeof(dirCombo), "%s/%03d", snap.windDirName.c_str(), (int)snap.windDirDeg);
 
-    StaticJsonDocument<128> statusDoc;
+    StaticJsonDocument<256> statusDoc;
     statusDoc["time"] = timeMgr.getFormattedLocal(snap.timestamp);
     statusDoc["dir"] = dirCombo;
     statusDoc["light"] = snap.light;
+    statusDoc["rainToday"] = snap.rainDaily;
+    statusDoc["rainRate"] = snap.rainRate;
 
     String statusJson;
     serializeJson(statusDoc, statusJson);
@@ -222,7 +229,8 @@ bool UploaderService::sendToAdafruitIO(const WeatherSnapshot& snap, const TimeMa
     addFeed("wind-speed-max", snap.windSpeedMax, 1);
     addFeed("wind-direction", snap.windDirDeg, 0); // Stupne na celé číslo
     addFeed("light", snap.light, 0);
-    addFeed("rain", snap.rain, 0);
+    addFeed("rain", snap.rain, 2);
+    addFeed("rain-today", snap.rainDaily, 2);
 
     String jsonString;
     serializeJson(doc, jsonString);

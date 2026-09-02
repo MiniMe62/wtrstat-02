@@ -526,6 +526,73 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
             }
         }
 
+        /* Heliograph Sunshine Timeline Bar */
+        .sunshine-bar-wrapper {
+            margin: 14px 0 10px 0;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 12px 14px;
+        }
+        .sunshine-bar-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .sunshine-bar {
+            display: flex;
+            height: 24px;
+            border-radius: 6px;
+            overflow: hidden;
+            background: #0f172a;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+        }
+        .sunshine-segment {
+            flex: 1;
+            height: 100%;
+            transition: opacity 0.2s ease;
+            position: relative;
+        }
+        .sunshine-segment:hover {
+            opacity: 0.8;
+            filter: brightness(1.25);
+            cursor: pointer;
+        }
+        .sunshine-segment.night { background: #1e293b; }
+        .sunshine-segment.overcast-dark { background: #475569; }
+        .sunshine-segment.overcast { background: #94a3b8; }
+        .sunshine-segment.cloudy { background: #fde047; }
+        .sunshine-segment.sunny { background: #f59e0b; }
+        .sunshine-ticks {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.72rem;
+            color: #64748b;
+            margin-top: 4px;
+            padding: 0 2px;
+        }
+        .legend-pill-sun {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--card-border);
+            padding: 3px 8px;
+            border-radius: 8px;
+        }
+        .legend-pill-sun .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
         footer {
             margin-top: 32px;
             text-align: center;
@@ -587,8 +654,66 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
             <div class="card">
                 <div class="card-header">Jas a Slnko <span id="skyConditionBadge" style="background: rgba(251, 191, 36, 0.2); color: #fbbf24; padding: 2px 6px; border-radius: 6px; font-size: 0.75rem;">--</span></div>
-                <div class="card-val" id="lightPercent">-- <span class="unit">%</span></div>
-                <div class="card-sub" id="sunshineDuration">Dnešný svit: --</div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-top: 4px;">
+                    <div style="position: relative; width: 68px; height: 48px; flex-shrink: 0;">
+                        <svg viewBox="0 0 100 62" style="width: 100%; height: 100%; overflow: visible;">
+                            <defs>
+                                <linearGradient id="solarGaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#38bdf8"/>
+                                    <stop offset="30%" stop-color="#94a3b8"/>
+                                    <stop offset="65%" stop-color="#fde047"/>
+                                    <stop offset="100%" stop-color="#f59e0b"/>
+                                </linearGradient>
+                            </defs>
+                            <path d="M 15 52 A 38 38 0 0 1 85 52" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8" stroke-linecap="round"/>
+                            <path id="solarGaugeArc" d="M 15 52 A 38 38 0 0 1 85 52" fill="none" stroke="url(#solarGaugeGrad)" stroke-width="8" stroke-linecap="round" stroke-dasharray="119.4" stroke-dashoffset="119.4" style="transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1);"/>
+                            <text id="solarGaugeIcon" x="50" y="48" text-anchor="middle" font-size="16" fill="#fbbf24">☀️</text>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="card-val" id="lightPercent" style="margin:0; font-size:2.0rem; font-weight:700;">-- <span class="unit">%</span></div>
+                        <div class="card-sub" id="sunshineDuration" style="font-size:0.82rem; color:var(--text-muted);">Svit: --</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">Zrážky <span id="rainIntensityBadge" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 2px 6px; border-radius: 6px; font-size: 0.75rem;">Bez zrážok</span></div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-top: 4px;">
+                    <div style="position: relative; width: 44px; height: 56px; flex-shrink: 0;">
+                        <svg viewBox="0 0 44 56" style="width: 100%; height: 100%; overflow: visible;">
+                            <defs>
+                                <linearGradient id="rainWaterGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#38bdf8"/>
+                                    <stop offset="100%" stop-color="#0284c7"/>
+                                </linearGradient>
+                                <clipPath id="rainCylinderClip">
+                                    <rect x="6" y="4" width="22" height="46" rx="4" ry="4"/>
+                                </clipPath>
+                            </defs>
+                            <!-- Sklenený valec pozadie -->
+                            <rect x="6" y="4" width="22" height="46" rx="4" ry="4" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+                            <!-- Hladina vody -->
+                            <g clip-path="url(#rainCylinderClip)">
+                                <rect id="rainWaterLevel" x="6" y="50" width="22" height="0" fill="url(#rainWaterGrad)" style="transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);"/>
+                                <path id="rainWaterWave" d="M 6 50 Q 11 48 17 50 T 28 50 L 28 50 L 6 50 Z" fill="#7dd3fc" opacity="0.6" style="transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);"/>
+                            </g>
+                            <!-- Rysky stupnice (0, 5, 10, 15, 20, 25 mm) -->
+                            <line x1="20" y1="12" x2="26" y2="12" stroke="rgba(255,255,255,0.45)" stroke-width="1"/>
+                            <line x1="22" y1="20" x2="26" y2="20" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+                            <line x1="20" y1="28" x2="26" y2="28" stroke="rgba(255,255,255,0.45)" stroke-width="1"/>
+                            <line x1="22" y1="36" x2="26" y2="36" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+                            <line x1="20" y1="44" x2="26" y2="44" stroke="rgba(255,255,255,0.45)" stroke-width="1"/>
+                            <text x="29" y="14" font-size="6.5" font-weight="600" fill="var(--text-muted)">25</text>
+                            <text x="29" y="30" font-size="6.5" font-weight="600" fill="var(--text-muted)">15</text>
+                            <text x="29" y="46" font-size="6.5" font-weight="600" fill="var(--text-muted)">5</text>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="card-val" id="rainToday" style="margin:0; font-size:1.85rem; font-weight:700;">0.00 <span class="unit">mm</span></div>
+                        <div class="card-sub" id="rainSub" style="font-size:0.80rem; color:var(--text-muted);">15 min: 0.00 mm • 0 tipov</div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -649,6 +774,24 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                             <td>Kumulatívne počítadlo svitu</td>
                         </tr>
                         <tr>
+                            <td>Zrážky dnes (od 00:00)</td>
+                            <td class="val-highlight" id="tblRainToday">--</td>
+                            <td>mm</td>
+                            <td>Tipping Bucket Reed (GPIO 4)</td>
+                        </tr>
+                        <tr>
+                            <td>Zrážky za 15 minút</td>
+                            <td class="val-highlight" id="tblRain15m">--</td>
+                            <td>mm</td>
+                            <td>15-minútová záverka</td>
+                        </tr>
+                        <tr>
+                            <td>Intenzita zrážok (Rain Rate)</td>
+                            <td class="val-highlight" id="tblRainRate">--</td>
+                            <td>mm/h</td>
+                            <td>Kĺzavé 60-minútové okno</td>
+                        </tr>
+                        <tr>
                             <td>Pripojená WiFi sieť</td>
                             <td class="val-highlight" id="tblWifiSSID">--</td>
                             <td>SSID</td>
@@ -695,6 +838,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     <button class="btn-view active" id="btnTempBoth" onclick="setTempView('both')">🌡️ Obe Teploty</button>
                     <button class="btn-view" id="btnTempIn" onclick="setTempView('in')">🏠 Len Vnútorná (Tin)</button>
                     <button class="btn-view" id="btnTempOut" onclick="setTempView('out')">🌲 Len Vonkajšia (Tout)</button>
+                    <button class="btn-view" id="btnTempLightToggle" onclick="toggleTempLightOverlay()" title="Podfarbenie intenzitou svetla na pozadí">☀️ +Svetlo</button>
                 </div>
 
                 <div class="btn-group">
@@ -731,6 +875,214 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 <div class="stat-badge">
                     <span class="stat-badge-lbl">Priemer (Tin / Tout)</span>
                     <span class="stat-badge-val" id="statTempAvg">-- / -- °C</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Light Intensity & Sunshine Section -->
+        <div class="chart-box">
+            <div class="chart-header-row">
+                <div class="section-title">☀️ Vývoj Intenzity Osvetlenia a Slnečného Svitu</div>
+                <button class="btn-bubble-toggle active" id="btnToggleLightTooltip" onclick="toggleLightTooltip()" title="Zapnúť / Vypnúť bubliny">
+                    💬 Bubliny <span id="lblLightTooltip">ZAP</span>
+                </button>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
+                Plošný priebeh intenzity svetla (TEMT6000), heliografická časová lišta a rozdelenie stavu oblohy.
+            </p>
+
+            <!-- Control Bar (View Mode & Timeframe Selector) -->
+            <div class="chart-controls">
+                <div class="btn-group">
+                    <button class="btn-view active" id="btnLightModeArea" onclick="setLightViewMode('area')">📈 Plošný Graf (%)</button>
+                    <button class="btn-view" id="btnLightModeTimeline" onclick="setLightViewMode('timeline')">⏱️ Heliograf (Lišta)</button>
+                    <button class="btn-view" id="btnLightModeDonut" onclick="setLightViewMode('donut')">🥧 Denný Podiel</button>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn-period active" id="btnLightPeriodLive" onclick="setLightPeriod('live')">⚡ Živé</button>
+                    <button class="btn-period" id="btnLightPeriod24h" onclick="setLightPeriod('24h')">📅 24h</button>
+                    <button class="btn-period" id="btnLightPeriod3d" onclick="setLightPeriod('3d')">📆 3d</button>
+                    <button class="btn-period" id="btnLightPeriod7d" onclick="setLightPeriod('7d')">🗓️ 7d</button>
+                </div>
+            </div>
+
+            <div id="lightChartLoading" style="display: none; font-size: 0.82rem; color: var(--primary); text-align: center; margin: 8px 0; font-weight: 500;">
+                ⏳ Načítavam dáta intenzity svetla...
+            </div>
+            <div id="lightChartNotice" style="display: none; font-size: 0.82rem; color: #fbbf24; text-align: center; margin: 8px 0; background: rgba(251, 191, 36, 0.1); padding: 6px 12px; border-radius: 8px;">
+            </div>
+
+            <!-- 1. Area Chart Wrapper -->
+            <div class="chart-line-wrapper" id="lightAreaWrapper">
+                <canvas id="lightAreaChart"></canvas>
+            </div>
+
+            <!-- 2. Donut Chart Wrapper (Zobrazí sa pri móde 'donut') -->
+            <div id="lightDonutWrapper" style="display: none; max-width: 380px; margin: 16px auto; position: relative;">
+                <canvas id="lightDonutChart"></canvas>
+            </div>
+
+            <!-- 3. Sunshine Timeline Bar (Campbell-Stokes Heliograf) -->
+            <div class="sunshine-bar-wrapper" id="sunshineBarWrapper">
+                <div class="sunshine-bar-title">
+                    <span>⏱️ Heliografická Lišta Slnečného Svitu (24h Záznam)</span>
+                    <span id="sunshineTimelineTotal" style="color: #fbbf24; font-weight: 700;">Dnes: --</span>
+                </div>
+                <div class="sunshine-bar" id="sunshineBar">
+                    <!-- Segmenty sa dynamicky generujú cez JS -->
+                </div>
+                <div class="sunshine-ticks">
+                    <span>00:00</span>
+                    <span>04:00</span>
+                    <span>08:00</span>
+                    <span>12:00</span>
+                    <span>16:00</span>
+                    <span>20:00</span>
+                    <span>24:00</span>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px;">
+                    <span class="legend-pill-sun"><span class="dot" style="background:#1e293b;"></span> Noc / Tma</span>
+                    <span class="legend-pill-sun"><span class="dot" style="background:#475569;"></span> Husto zamračené</span>
+                    <span class="legend-pill-sun"><span class="dot" style="background:#94a3b8;"></span> Zamračené</span>
+                    <span class="legend-pill-sun"><span class="dot" style="background:#fde047;"></span> Polooblačno</span>
+                    <span class="legend-pill-sun"><span class="dot" style="background:#f59e0b;"></span> Priame slnko (Svit)</span>
+                </div>
+            </div>
+            
+            <div class="chart-stats-grid">
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Dnešný Svit (Heliograf)</span>
+                    <span class="stat-badge-val" id="statLightSunshine" style="color: #fbbf24;">--</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Max Intenzita</span>
+                    <span class="stat-badge-val" id="statLightMax" style="color: #f59e0b;">-- %</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Denný Priemer</span>
+                    <span class="stat-badge-val" id="statLightAvg" style="color: #38bdf8;">-- %</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Aktuálny Stav Oblohy</span>
+                    <span class="stat-badge-val" id="statLightCurrent" style="color: #4ade80;">--</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rain & Hyetograph Section -->
+        <div class="chart-box">
+            <div class="chart-header-row">
+                <div class="section-title">🌧️ Vývoj Zrážok a Hyetograf</div>
+                <button class="btn-bubble-toggle active" id="btnToggleRainTooltip" onclick="toggleRainTooltip()" title="Zapnúť / Vypnúť bubliny">
+                    💬 Bubliny <span id="lblRainTooltip">ZAP</span>
+                </button>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
+                Stĺpcový prehľad zrážkových úhrnov v čase (15 min / 1 h), kumulatívna denná čiara a analýza intenzity dažďa.
+            </p>
+
+            <!-- Control Bar (View Mode & Timeframe Selector) -->
+            <div class="chart-controls">
+                <div class="btn-group">
+                    <button class="btn-view active" id="btnRainModeBars" onclick="setRainViewMode('bars')">📊 Úhrny (mm)</button>
+                    <button class="btn-view" id="btnRainModeRate" onclick="setRainViewMode('rate')">⚡ Intenzita (mm/h)</button>
+                    <button class="btn-view" id="btnRainModeCumulative" onclick="setRainViewMode('cumulative')">📈 Kumulatívne</button>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn-period active" id="btnRainPeriodLive" onclick="setRainPeriod('live')">⚡ Živé</button>
+                    <button class="btn-period" id="btnRainPeriod24h" onclick="setRainPeriod('24h')">📅 24h</button>
+                    <button class="btn-period" id="btnRainPeriod3d" onclick="setRainPeriod('3d')">📆 3d</button>
+                    <button class="btn-period" id="btnRainPeriod7d" onclick="setRainPeriod('7d')">🗓️ 7d</button>
+                </div>
+            </div>
+
+            <div id="rainChartLoading" style="display: none; font-size: 0.82rem; color: var(--primary); text-align: center; margin: 8px 0; font-weight: 500;">
+                ⏳ Načítavam dáta zrážok z ThingSpeak API...
+            </div>
+            <div id="rainChartNotice" style="display: none; font-size: 0.82rem; color: #fbbf24; text-align: center; margin: 8px 0; background: rgba(251, 191, 36, 0.1); padding: 6px 12px; border-radius: 8px;">
+            </div>
+
+            <div class="chart-line-wrapper">
+                <canvas id="rainBarChart"></canvas>
+            </div>
+            
+            <div class="chart-stats-grid">
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Zrážky Dnes</span>
+                    <span class="stat-badge-val" id="statRainToday" style="color: #38bdf8;">0.00 mm</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Posledných 15 min</span>
+                    <span class="stat-badge-val" id="statRain15m" style="color: #7dd3fc;">0.00 mm</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Max Intenzita</span>
+                    <span class="stat-badge-val" id="statRainPeakRate" style="color: #818cf8;">0.00 mm/h</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Počet Preklopení</span>
+                    <span class="stat-badge-val" id="statRainTips">0 tipov</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wind Speed & Gusts History Section (SHMÚ ALADIN style) -->
+        <div class="chart-box">
+            <div class="chart-header-row">
+                <div class="section-title">💨 Vývoj Rýchlosti a Nárazov Vetra</div>
+                <button class="btn-bubble-toggle active" id="btnToggleWindSpeedTooltip" onclick="toggleWindSpeedTooltip()" title="Zapnúť / Vypnúť bubliny">
+                    💬 Bubliny <span id="lblWindSpeedTooltip">ZAP</span>
+                </button>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
+                Časový priebeh priemernej rýchlosti vetra (čiara) s vloženými stĺpcami významných nárazov (štýl ALADIN / SHMÚ).
+            </p>
+
+            <!-- Control Bar (Gust Filter & Timeframe Selector) -->
+            <div class="chart-controls">
+                <div class="btn-group">
+                    <button class="btn-view active" id="btnGustThresholdSig" onclick="setGustFilter('significant')">⚡ Výrazné nárazy (&gt;1.3×)</button>
+                    <button class="btn-view" id="btnGustThresholdHigh" onclick="setGustFilter('high')">🔥 Silné (&gt;1.5×)</button>
+                    <button class="btn-view" id="btnGustThresholdAll" onclick="setGustFilter('all')">📊 Všetky nárazy</button>
+                    <button class="btn-view" id="btnGustThresholdNone" onclick="setGustFilter('none')">🚫 Skryť nárazy</button>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn-period active" id="btnWindSpeedPeriodLive" onclick="setWindSpeedPeriod('live')">⚡ Živé</button>
+                    <button class="btn-period" id="btnWindSpeedPeriod24h" onclick="setWindSpeedPeriod('24h')">📅 24h</button>
+                    <button class="btn-period" id="btnWindSpeedPeriod3d" onclick="setWindSpeedPeriod('3d')">📆 3d</button>
+                    <button class="btn-period" id="btnWindSpeedPeriod7d" onclick="setWindSpeedPeriod('7d')">🗓️ 7d</button>
+                </div>
+            </div>
+
+            <div id="windSpeedChartLoading" style="display: none; font-size: 0.82rem; color: var(--primary); text-align: center; margin: 8px 0; font-weight: 500;">
+                ⏳ Načítavam dáta rýchlosti vetra z ThingSpeak API...
+            </div>
+            <div id="windSpeedChartNotice" style="display: none; font-size: 0.82rem; color: #fbbf24; text-align: center; margin: 8px 0; background: rgba(251, 191, 36, 0.1); padding: 6px 12px; border-radius: 8px;">
+            </div>
+
+            <div class="chart-line-wrapper">
+                <canvas id="windSpeedChart"></canvas>
+            </div>
+            
+            <div class="chart-stats-grid">
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Aktuálna Rýchlosť</span>
+                    <span class="stat-badge-val" id="statSpeedCurrent" style="color: #38bdf8;">-- m/s</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Priemerná Rýchlosť</span>
+                    <span class="stat-badge-val" id="statSpeedAvg" style="color: #38bdf8;">-- m/s</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Max Náraz (GUST)</span>
+                    <span class="stat-badge-val" id="statSpeedMaxGust" style="color: #fb7185;">-- m/s</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-badge-lbl">Výrazné Nárazy</span>
+                    <span class="stat-badge-val" id="statSpeedGustCount" style="color: #fbbf24;">0</span>
                 </div>
             </div>
         </div>
@@ -856,6 +1208,11 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
         </div>
 
         <footer>
+            <div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <button type="button" id="btnSimRain" onclick="simulateRainTip()" style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); color: var(--primary); padding: 6px 14px; border-radius: 12px; cursor: pointer; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
+                    💧 Simulovať preklop zrážkomera (+1 tip)
+                </button>
+            </div>
             wtrStat-02 • ESP32 Weather Station Firmware • <a href="/update" style="color: var(--primary); text-decoration: none;">⚙️ OTA Update</a>
         </footer>
     </div>
@@ -878,10 +1235,13 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
         let liveTempLabels = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:15'];
         let liveTempIn = [22.50, 22.50, 22.75, 23.00, 23.00, 23.25, 23.50, 23.50, 23.75, 23.75, 24.00, 24.00];
         let liveTempOut = [19.25, 20.50, 22.00, 23.75, 25.50, 27.00, 28.50, 29.50, 30.75, 31.50, 31.00, 30.50];
+        let liveLightData = [5, 12, 35, 60, 75, 88, 92, 85, 70, 45, 20, 10];
 
         let activeTempLabels = [...liveTempLabels];
         let activeTempIn = [...liveTempIn];
         let activeTempOut = [...liveTempOut];
+        let activeTempLight = [...liveLightData];
+        let showTempLightOverlay = false;
 
         let tempLineChartInstance = null;
 
@@ -896,6 +1256,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                         {
                             label: 'Vnútorná (Tin)',
                             data: activeTempIn,
+                            yAxisID: 'y',
                             borderColor: '#fb7185',
                             backgroundColor: 'rgba(251, 113, 133, 0.12)',
                             fill: true,
@@ -908,6 +1269,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                         {
                             label: 'Vonkajšia (Tout)',
                             data: activeTempOut,
+                            yAxisID: 'y',
                             borderColor: '#38bdf8',
                             backgroundColor: 'rgba(56, 189, 248, 0.12)',
                             fill: true,
@@ -916,6 +1278,20 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                             pointRadius: 2,
                             pointHoverRadius: 6,
                             pointBackgroundColor: '#38bdf8'
+                        },
+                        {
+                            label: 'Svetlo na pozadí',
+                            data: activeTempLight,
+                            yAxisID: 'yLight',
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(251, 191, 36, 0.18)',
+                            fill: true,
+                            tension: 0.35,
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            pointBackgroundColor: '#fbbf24',
+                            hidden: !showTempLightOverlay
                         }
                     ]
                 },
@@ -955,6 +1331,19 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                                     return val.toFixed(1) + ' °C';
                                 }
                             }
+                        },
+                        yLight: {
+                            type: 'linear',
+                            position: 'right',
+                            min: 0,
+                            max: 100,
+                            display: showTempLightOverlay,
+                            grid: { drawOnChartArea: false },
+                            ticks: {
+                                color: '#fbbf24',
+                                font: { size: 10, family: 'Inter' },
+                                callback: function(val) { return val + '%'; }
+                            }
                         }
                     },
                     plugins: {
@@ -978,6 +1367,9 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                             padding: 10,
                             callbacks: {
                                 label: function(context) {
+                                    if (context.dataset.yAxisID === 'yLight') {
+                                        return ` ${context.dataset.label}: ${parseFloat(context.parsed.y).toFixed(0)} %`;
+                                    }
                                     return ` ${context.dataset.label}: ${parseFloat(context.parsed.y).toFixed(2)} °C`;
                                 }
                             }
@@ -1047,6 +1439,17 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
             }
         }
 
+        function toggleTempLightOverlay() {
+            showTempLightOverlay = !showTempLightOverlay;
+            const btn = document.getElementById('btnTempLightToggle');
+            if (btn) btn.classList.toggle('active', showTempLightOverlay);
+            if (tempLineChartInstance) {
+                tempLineChartInstance.setDatasetVisibility(2, showTempLightOverlay);
+                tempLineChartInstance.options.scales.yLight.display = showTempLightOverlay;
+                tempLineChartInstance.update();
+            }
+        }
+
         let tempTooltipEnabled = true;
         function toggleTempTooltip() {
             tempTooltipEnabled = !tempTooltipEnabled;
@@ -1092,6 +1495,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 activeTempLabels = [...liveTempLabels];
                 activeTempIn = [...liveTempIn];
                 activeTempOut = [...liveTempOut];
+                activeTempLight = [...liveLightData];
                 renderTempChart();
             } else {
                 let resultsCount = 96; // 24h
@@ -1107,6 +1511,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
             tempLineChartInstance.data.labels = activeTempLabels;
             tempLineChartInstance.data.datasets[0].data = activeTempIn;
             tempLineChartInstance.data.datasets[1].data = activeTempOut;
+            tempLineChartInstance.data.datasets[2].data = activeTempLight;
 
             tempLineChartInstance.update();
             updateTempStats();
@@ -1122,7 +1527,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
             loadingEl.style.display = 'block';
             noticeEl.style.display = 'none';
 
-            const url = `https://api.thingspeak.com/channels/${chanId}/feeds.json?api_key=${cfg.key}&results=${resultsCount}`;
+            const url = `https://api.thingspeak.com/channels/${chanId}/feeds.json?api_key=${cfg.key}&results=${resultsCount}&status=true`;
 
             try {
                 const res = await fetch(url);
@@ -1136,6 +1541,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 let labels = [];
                 let tinSeries = [];
                 let toutSeries = [];
+                let lightSeries = [];
 
                 for (const feed of data.feeds) {
                     if (!feed.created_at) continue;
@@ -1157,9 +1563,20 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                         tOut = null;
                     }
 
+                    let lVal = null;
+                    if (feed.status) {
+                        try {
+                            const stObj = JSON.parse(feed.status);
+                            if (stObj.light !== undefined && stObj.light !== null && stObj.light !== "") {
+                                lVal = parseFloat(stObj.light);
+                            }
+                        } catch(e) {}
+                    }
+
                     labels.push(label);
                     tinSeries.push(tIn);
                     toutSeries.push(tOut);
+                    lightSeries.push(lVal !== null && !isNaN(lVal) ? lVal : 0);
                 }
 
                 loadingEl.style.display = 'none';
@@ -1173,6 +1590,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 activeTempLabels = labels;
                 activeTempIn = tinSeries;
                 activeTempOut = toutSeries;
+                activeTempLight = lightSeries;
                 renderTempChart();
 
             } catch (err) {
@@ -1182,26 +1600,1082 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
             }
         }
 
-        function addLiveTempSample(timeLabel, tIn, tOut) {
+        function addLiveTempSample(timeLabel, tIn, tOut, lightVal) {
             // Plauzibilný filter pre živé dáta
             const validIn = (tIn !== null && !isNaN(tIn) && tIn >= -40.0 && tIn <= 60.0 && Math.abs(tIn - 85.0) > 0.1 && Math.abs(tIn + 127.0) > 0.1) ? tIn : null;
             const validOut = (tOut !== null && !isNaN(tOut) && tOut >= -40.0 && tOut <= 60.0 && Math.abs(tOut - 85.0) > 0.1 && Math.abs(tOut + 127.0) > 0.1) ? tOut : null;
+            const validLight = (lightVal !== null && !isNaN(lightVal)) ? lightVal : 0;
 
             liveTempLabels.push(timeLabel);
             liveTempIn.push(validIn);
             liveTempOut.push(validOut);
+            liveLightData.push(validLight);
 
             if (liveTempLabels.length > 25) {
                 liveTempLabels.shift();
                 liveTempIn.shift();
                 liveTempOut.shift();
+                liveLightData.shift();
             }
 
             if (tempPeriod === 'live') {
                 activeTempLabels = [...liveTempLabels];
                 activeTempIn = [...liveTempIn];
                 activeTempOut = [...liveTempOut];
+                activeTempLight = [...liveLightData];
                 renderTempChart();
+            }
+        }
+
+        // ================= GRAF INTENZITY OSVETLENIA A SLNEČNÉHO SVITU =================
+        let lightViewMode = 'area'; // 'area' | 'timeline' | 'donut'
+        let lightPeriod = 'live';   // 'live' | '24h' | '3d' | '7d'
+        let lightTooltipEnabled = true;
+
+        let liveLightLabels = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:15'];
+        let liveLightSeries = [5, 12, 35, 60, 75, 88, 92, 85, 70, 45, 20, 10]; // %
+
+        let activeLightLabels = [...liveLightLabels];
+        let activeLightData = [...liveLightSeries];
+
+        let lightAreaChartInstance = null;
+        let lightDonutChartInstance = null;
+
+        function initLightAreaChart() {
+            const canvas = document.getElementById('lightAreaChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            const grad = ctx.createLinearGradient(0, 0, 0, 280);
+            grad.addColorStop(0, 'rgba(245, 158, 11, 0.45)');
+            grad.addColorStop(0.5, 'rgba(253, 224, 71, 0.18)');
+            grad.addColorStop(1, 'rgba(245, 158, 11, 0.00)');
+
+            lightAreaChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: activeLightLabels,
+                    datasets: [
+                        {
+                            label: 'Intenzita Svetla',
+                            data: activeLightData,
+                            borderColor: '#f59e0b',
+                            backgroundColor: grad,
+                            fill: true,
+                            tension: 0.35,
+                            borderWidth: 2.4,
+                            pointRadius: 2,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: '#fbbf24'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    animation: {
+                        duration: 500,
+                        easing: 'easeOutQuart'
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: { size: 10, family: 'Inter' },
+                                maxRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 10
+                            }
+                        },
+                        y: {
+                            min: 0,
+                            max: 100,
+                            grid: { color: 'rgba(255, 255, 255, 0.06)' },
+                            ticks: {
+                                color: '#fbbf24',
+                                font: { size: 11, family: 'Inter' },
+                                callback: function(val) { return val + ' %'; }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: lightTooltipEnabled,
+                            backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                            titleColor: '#fbbf24',
+                            titleFont: { weight: '700', size: 12 },
+                            bodyFont: { size: 12 },
+                            borderColor: 'rgba(251, 191, 36, 0.3)',
+                            borderWidth: 1,
+                            padding: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    const val = parseFloat(context.parsed.y);
+                                    let cond = 'Noc / Tma';
+                                    if (val >= 60) cond = 'Priame slnko (Svit)';
+                                    else if (val >= 35) cond = 'Polooblačno';
+                                    else if (val >= 15) cond = 'Zamračené';
+                                    else if (val >= 3) cond = 'Husto zamračené';
+                                    return ` Intenzita: ${val.toFixed(1)} % (${cond})`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            updateLightStats();
+            updateSunshineTimeline(activeLightLabels, activeLightData);
+        }
+
+        function initLightDonutChart() {
+            const canvas = document.getElementById('lightDonutChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            lightDonutChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Priame slnko (Svit)', 'Polooblačno', 'Zamračené', 'Noc / Tma'],
+                    datasets: [{
+                        data: [25, 30, 20, 25],
+                        backgroundColor: ['#f59e0b', '#fde047', '#94a3b8', '#1e293b'],
+                        borderColor: '#0f172a',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#94a3b8', font: { size: 11, family: 'Inter' }, boxWidth: 12 }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: ${context.parsed.toFixed(1)} %`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateLightStats() {
+            const valid = activeLightData.filter(v => v !== null && !isNaN(v));
+            if (valid.length === 0) return;
+
+            const max = Math.max(...valid).toFixed(0);
+            const avg = (valid.reduce((a, b) => a + b, 0) / valid.length).toFixed(1);
+            const last = valid[valid.length - 1];
+
+            document.getElementById('statLightMax').innerText = `${max} %`;
+            document.getElementById('statLightAvg').innerText = `${avg} %`;
+
+            let currentCond = 'Noc / Tma';
+            if (last >= 60) currentCond = 'Priame slnko';
+            else if (last >= 35) currentCond = 'Polooblačno';
+            else if (last >= 15) currentCond = 'Zamračené';
+            else if (last >= 3) currentCond = 'Husto zamračené';
+            document.getElementById('statLightCurrent').innerText = currentCond;
+
+            // Aktualizácia koláčového grafu
+            let countSun = 0, countCloudy = 0, countOvercast = 0, countNight = 0;
+            valid.forEach(v => {
+                if (v >= 60) countSun++;
+                else if (v >= 35) countCloudy++;
+                else if (v >= 15) countOvercast++;
+                else countNight++;
+            });
+            const total = valid.length;
+            if (lightDonutChartInstance) {
+                lightDonutChartInstance.data.datasets[0].data = [
+                    (countSun / total) * 100,
+                    (countCloudy / total) * 100,
+                    (countOvercast / total) * 100,
+                    (countNight / total) * 100
+                ];
+                lightDonutChartInstance.update();
+            }
+        }
+
+        function updateSunshineTimeline(labels, data) {
+            const bar = document.getElementById('sunshineBar');
+            if (!bar) return;
+            bar.innerHTML = '';
+            if (!data || data.length === 0) return;
+
+            let sunCount = 0;
+            data.forEach((val, idx) => {
+                const seg = document.createElement('div');
+                seg.className = 'sunshine-segment';
+                let cond = 'night';
+                let labelText = 'Noc / Tma';
+                const v = (val !== null && !isNaN(val)) ? val : 0;
+
+                if (v >= 60) {
+                    cond = 'sunny';
+                    labelText = 'Priame slnko';
+                    sunCount++;
+                } else if (v >= 35) {
+                    cond = 'cloudy';
+                    labelText = 'Polooblačno';
+                } else if (v >= 15) {
+                    cond = 'overcast';
+                    labelText = 'Zamračené';
+                } else if (v >= 3) {
+                    cond = 'overcast-dark';
+                    labelText = 'Husto zamračené';
+                }
+
+                seg.classList.add(cond);
+                const timeStr = labels && labels[idx] ? labels[idx] : '';
+                seg.title = `${timeStr}: ${v.toFixed(0)}% (${labelText})`;
+                bar.appendChild(seg);
+            });
+
+            // Odhad celkového svitu
+            const intervalMinutes = (labels && labels.length > 1) ? 15 : 15;
+            const totalMinutes = sunCount * intervalMinutes;
+            const hrs = Math.floor(totalMinutes / 60);
+            const mins = totalMinutes % 60;
+            const formatted = `${hrs}h ${mins.toString().padStart(2, '0')}m`;
+            const totEl = document.getElementById('sunshineTimelineTotal');
+            if (totEl) totEl.innerText = `Dnes: ${formatted}`;
+            const statSun = document.getElementById('statLightSunshine');
+            if (statSun) statSun.innerText = formatted;
+        }
+
+        function updateSolarGauge(percent, condition) {
+            const arc = document.getElementById('solarGaugeArc');
+            const icon = document.getElementById('solarGaugeIcon');
+            if (!arc) return;
+            const clamped = Math.max(0, Math.min(100, (percent !== null && !isNaN(percent)) ? percent : 0));
+            // 119.4 is the arc length of radius 38 semicircle (PI * 38 = 119.38)
+            const offset = 119.4 * (1 - clamped / 100);
+            arc.style.strokeDashoffset = offset;
+            
+            if (icon) {
+                if (clamped < 3) icon.textContent = '🌙';
+                else if (clamped < 20) icon.textContent = '🌧️';
+                else if (clamped < 40) icon.textContent = '☁️';
+                else if (clamped < 65) icon.textContent = '⛅';
+                else icon.textContent = '☀️';
+            }
+        }
+
+        function setLightViewMode(mode) {
+            lightViewMode = mode;
+            ['btnLightModeArea', 'btnLightModeTimeline', 'btnLightModeDonut'].forEach(id => {
+                document.getElementById(id).classList.remove('active');
+            });
+
+            const areaWrap = document.getElementById('lightAreaWrapper');
+            const donutWrap = document.getElementById('lightDonutWrapper');
+            const barWrap = document.getElementById('sunshineBarWrapper');
+
+            if (mode === 'area') {
+                document.getElementById('btnLightModeArea').classList.add('active');
+                if (areaWrap) areaWrap.style.display = 'block';
+                if (donutWrap) donutWrap.style.display = 'none';
+                if (barWrap) barWrap.style.display = 'block';
+            } else if (mode === 'timeline') {
+                document.getElementById('btnLightModeTimeline').classList.add('active');
+                if (areaWrap) areaWrap.style.display = 'none';
+                if (donutWrap) donutWrap.style.display = 'none';
+                if (barWrap) barWrap.style.display = 'block';
+            } else if (mode === 'donut') {
+                document.getElementById('btnLightModeDonut').classList.add('active');
+                if (areaWrap) areaWrap.style.display = 'none';
+                if (donutWrap) donutWrap.style.display = 'block';
+                if (barWrap) barWrap.style.display = 'none';
+            }
+        }
+
+        function toggleLightTooltip() {
+            lightTooltipEnabled = !lightTooltipEnabled;
+            const btn = document.getElementById('btnToggleLightTooltip');
+            const lbl = document.getElementById('lblLightTooltip');
+            if (btn) btn.classList.toggle('active', lightTooltipEnabled);
+            if (lbl) lbl.innerText = lightTooltipEnabled ? 'ZAP' : 'VYP';
+            if (lightAreaChartInstance) {
+                lightAreaChartInstance.options.plugins.tooltip.enabled = lightTooltipEnabled;
+                lightAreaChartInstance.update('none');
+            }
+        }
+
+        function setLightPeriod(period) {
+            lightPeriod = period;
+
+            ['btnLightPeriodLive', 'btnLightPeriod24h', 'btnLightPeriod3d', 'btnLightPeriod7d'].forEach(id => {
+                document.getElementById(id).classList.remove('active');
+            });
+
+            if (period === 'live') document.getElementById('btnLightPeriodLive').classList.add('active');
+            if (period === '24h') document.getElementById('btnLightPeriod24h').classList.add('active');
+            if (period === '3d') document.getElementById('btnLightPeriod3d').classList.add('active');
+            if (period === '7d') document.getElementById('btnLightPeriod7d').classList.add('active');
+
+            document.getElementById('lightChartNotice').style.display = 'none';
+
+            if (period === 'live') {
+                document.getElementById('lightChartLoading').style.display = 'none';
+                activeLightLabels = [...liveLightLabels];
+                activeLightData = [...liveLightSeries];
+                renderLightChart();
+            } else {
+                let resultsCount = 96; // 24h
+                if (period === '3d') resultsCount = 288;
+                if (period === '7d') resultsCount = 672;
+                fetchThingSpeakLightHistory(resultsCount);
+            }
+        }
+
+        function renderLightChart() {
+            if (lightAreaChartInstance) {
+                lightAreaChartInstance.data.labels = activeLightLabels;
+                lightAreaChartInstance.data.datasets[0].data = activeLightData;
+                lightAreaChartInstance.update();
+            }
+            updateLightStats();
+            updateSunshineTimeline(activeLightLabels, activeLightData);
+        }
+
+        async function fetchThingSpeakLightHistory(resultsCount) {
+            const chanId = document.getElementById('selStation').value;
+            const cfg = TS_CONFIG[chanId];
+            if (!cfg) return;
+
+            const loadingEl = document.getElementById('lightChartLoading');
+            const noticeEl = document.getElementById('lightChartNotice');
+            loadingEl.style.display = 'block';
+            noticeEl.style.display = 'none';
+
+            const url = `https://api.thingspeak.com/channels/${chanId}/feeds.json?api_key=${cfg.key}&results=${resultsCount}&status=true`;
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error("Chyba odpovede z ThingSpeak API");
+                const data = await res.json();
+
+                if (!data.feeds || data.feeds.length === 0) {
+                    throw new Error("Žiadne záznamy.");
+                }
+
+                let labels = [];
+                let lightSeries = [];
+
+                for (const feed of data.feeds) {
+                    if (!feed.created_at) continue;
+                    
+                    const d = new Date(feed.created_at);
+                    let label = d.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
+                    if (resultsCount > 96) {
+                        label = `${d.getDate()}.${d.getMonth() + 1}. ` + label;
+                    }
+
+                    let lVal = null;
+                    if (feed.status) {
+                        try {
+                            const stObj = JSON.parse(feed.status);
+                            if (stObj.light !== undefined && stObj.light !== null && stObj.light !== "") {
+                                lVal = parseFloat(stObj.light);
+                            }
+                        } catch(e) {}
+                    }
+
+                    labels.push(label);
+                    lightSeries.push(lVal !== null && !isNaN(lVal) ? lVal : 0);
+                }
+
+                loadingEl.style.display = 'none';
+
+                if (labels.length === 0) {
+                    noticeEl.innerText = `ℹ️ Stanica ${cfg.name} nemá v zvolenom období záznamy o svetle.`;
+                    noticeEl.style.display = 'block';
+                    return;
+                }
+
+                activeLightLabels = labels;
+                activeLightData = lightSeries;
+                renderLightChart();
+
+            } catch (err) {
+                loadingEl.style.display = 'none';
+                noticeEl.innerText = `⚠️ Nepodarilo sa načítať dáta svetla: ${err.message}`;
+                noticeEl.style.display = 'block';
+            }
+        }
+
+        function addLiveLightSample(timeLabel, lightVal) {
+            const val = (lightVal !== null && !isNaN(lightVal)) ? lightVal : 0;
+            liveLightLabels.push(timeLabel);
+            liveLightSeries.push(val);
+
+            if (liveLightLabels.length > 25) {
+                liveLightLabels.shift();
+                liveLightSeries.shift();
+            }
+
+            if (lightPeriod === 'live') {
+                activeLightLabels = [...liveLightLabels];
+                activeLightData = [...liveLightSeries];
+                renderLightChart();
+            }
+        }
+
+        // ================= ZRÁŽKY A HYETOGRAF =================
+        let rainViewMode = 'bars'; // 'bars' | 'rate' | 'cumulative'
+        let rainPeriod = 'live';   // 'live' | '24h' | '3d' | '7d'
+        let rainTooltipEnabled = true;
+
+        let liveRainLabels = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:15'];
+        let liveRain15m = [0.0, 0.0, 0.28, 0.56, 1.12, 0.84, 0.28, 0.0, 0.0, 0.0, 0.0, 0.0];
+        let liveRainCumulative = [0.0, 0.0, 0.28, 0.84, 1.96, 2.80, 3.08, 3.08, 3.08, 3.08, 3.08, 3.08];
+        let liveRainRate = [0.0, 0.0, 1.12, 2.24, 4.48, 3.36, 1.12, 0.0, 0.0, 0.0, 0.0, 0.0];
+
+        let activeRainLabels = [...liveRainLabels];
+        let activeRain15m = [...liveRain15m];
+        let activeRainCumulative = [...liveRainCumulative];
+        let activeRainRate = [...liveRainRate];
+
+        let rainBarChartInstance = null;
+
+        function updateRainGauge(rainToday, rainIntensity) {
+            const levelEl = document.getElementById('rainWaterLevel');
+            const waveEl = document.getElementById('rainWaterWave');
+            if (!levelEl) return;
+            const val = (rainToday !== null && !isNaN(rainToday)) ? Math.max(0, rainToday) : 0;
+            // Max scale 25 mm = 46px height
+            const maxMm = 25.0;
+            const ratio = Math.min(1.0, val / maxMm);
+            const h = ratio * 46;
+            const y = 50 - h;
+            levelEl.setAttribute('y', y);
+            levelEl.setAttribute('height', h);
+            if (waveEl) {
+                waveEl.setAttribute('d', `M 6 ${y} Q 11 ${y - 2} 17 ${y} T 28 ${y} L 28 50 L 6 50 Z`);
+            }
+        }
+
+        function initRainBarChart() {
+            const ctx = document.getElementById('rainBarChart');
+            if (!ctx) return;
+
+            rainBarChartInstance = new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: activeRainLabels,
+                    datasets: [
+                        {
+                            label: 'Zrážky (mm)',
+                            data: activeRain15m,
+                            backgroundColor: 'rgba(56, 189, 248, 0.65)',
+                            borderColor: '#38bdf8',
+                            borderWidth: 1.5,
+                            borderRadius: 4,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Kumulatívny úhrn (mm)',
+                            data: activeRainCumulative,
+                            type: 'line',
+                            borderColor: '#818cf8',
+                            backgroundColor: 'rgba(129, 140, 248, 0.15)',
+                            borderWidth: 2.5,
+                            pointRadius: 3,
+                            pointBackgroundColor: '#818cf8',
+                            tension: 0.25,
+                            fill: false,
+                            yAxisID: 'y'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 }, usePointStyle: true, boxWidth: 8 }
+                        },
+                        tooltip: {
+                            enabled: rainTooltipEnabled,
+                            backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                            titleColor: '#f8fafc',
+                            bodyColor: '#94a3b8',
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 1,
+                            padding: 10,
+                            callbacks: {
+                                label: function(ctx) {
+                                    const val = ctx.parsed.y;
+                                    return ` ${ctx.dataset.label}: ${val !== null ? val.toFixed(2) + ' mm' : '--'}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#94a3b8', font: { size: 10 } }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.06)' },
+                            ticks: {
+                                color: '#94a3b8',
+                                callback: val => val.toFixed(1) + ' mm'
+                            },
+                            title: { display: true, text: 'Zrážky (mm)', color: '#64748b', font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+            updateRainStats();
+        }
+
+        function toggleRainTooltip() {
+            rainTooltipEnabled = !rainTooltipEnabled;
+            const btn = document.getElementById('btnToggleRainTooltip');
+            const lbl = document.getElementById('lblRainTooltip');
+            if (rainTooltipEnabled) {
+                btn.classList.add('active');
+                lbl.innerText = 'ZAP';
+            } else {
+                btn.classList.remove('active');
+                lbl.innerText = 'VYP';
+            }
+            if (rainBarChartInstance) {
+                rainBarChartInstance.options.plugins.tooltip.enabled = rainTooltipEnabled;
+                rainBarChartInstance.update('none');
+            }
+        }
+
+        function setRainViewMode(mode) {
+            rainViewMode = mode;
+            ['btnRainModeBars', 'btnRainModeRate', 'btnRainModeCumulative'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('active');
+            });
+
+            if (mode === 'bars') {
+                document.getElementById('btnRainModeBars').classList.add('active');
+                if (rainBarChartInstance) {
+                    rainBarChartInstance.data.datasets[0].hidden = false;
+                    rainBarChartInstance.data.datasets[1].hidden = false;
+                    rainBarChartInstance.data.datasets[0].label = 'Zrážky (mm)';
+                    rainBarChartInstance.data.datasets[0].data = activeRain15m;
+                    rainBarChartInstance.options.scales.y.title.text = 'Zrážky (mm)';
+                }
+            } else if (mode === 'rate') {
+                document.getElementById('btnRainModeRate').classList.add('active');
+                if (rainBarChartInstance) {
+                    rainBarChartInstance.data.datasets[0].hidden = false;
+                    rainBarChartInstance.data.datasets[1].hidden = true;
+                    rainBarChartInstance.data.datasets[0].label = 'Intenzita (mm/h)';
+                    rainBarChartInstance.data.datasets[0].data = activeRainRate;
+                    rainBarChartInstance.options.scales.y.title.text = 'Intenzita (mm/h)';
+                }
+            } else if (mode === 'cumulative') {
+                document.getElementById('btnRainModeCumulative').classList.add('active');
+                if (rainBarChartInstance) {
+                    rainBarChartInstance.data.datasets[0].hidden = true;
+                    rainBarChartInstance.data.datasets[1].hidden = false;
+                    rainBarChartInstance.data.datasets[1].label = 'Kumulatívny úhrn (mm)';
+                    rainBarChartInstance.data.datasets[1].data = activeRainCumulative;
+                    rainBarChartInstance.options.scales.y.title.text = 'Suma (mm)';
+                }
+            }
+            if (rainBarChartInstance) rainBarChartInstance.update();
+        }
+
+        function setRainPeriod(period) {
+            rainPeriod = period;
+            ['btnRainPeriodLive', 'btnRainPeriod24h', 'btnRainPeriod3d', 'btnRainPeriod7d'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('active');
+            });
+
+            if (period === 'live') document.getElementById('btnRainPeriodLive').classList.add('active');
+            if (period === '24h') document.getElementById('btnRainPeriod24h').classList.add('active');
+            if (period === '3d') document.getElementById('btnRainPeriod3d').classList.add('active');
+            if (period === '7d') document.getElementById('btnRainPeriod7d').classList.add('active');
+
+            document.getElementById('rainChartNotice').style.display = 'none';
+
+            if (period === 'live') {
+                document.getElementById('rainChartLoading').style.display = 'none';
+                activeRainLabels = [...liveRainLabels];
+                activeRain15m = [...liveRain15m];
+                activeRainCumulative = [...liveRainCumulative];
+                activeRainRate = [...liveRainRate];
+                renderRainChart();
+            } else {
+                let resultsCount = 96; // 24h
+                if (period === '3d') resultsCount = 288;
+                if (period === '7d') resultsCount = 672;
+                fetchThingSpeakRainHistory(resultsCount);
+            }
+        }
+
+        function renderRainChart() {
+            if (!rainBarChartInstance) return;
+            rainBarChartInstance.data.labels = activeRainLabels;
+            rainBarChartInstance.data.datasets[0].data = (rainViewMode === 'rate') ? activeRainRate : activeRain15m;
+            rainBarChartInstance.data.datasets[1].data = activeRainCumulative;
+            rainBarChartInstance.update();
+            updateRainStats();
+        }
+
+        function updateRainStats() {
+            const sumToday = activeRain15m.reduce((acc, v) => acc + (v || 0), 0);
+            const peakRate = Math.max(...activeRainRate.map(v => v || 0), 0);
+            const last15m = (activeRain15m.length > 0 && activeRain15m[activeRain15m.length - 1] !== null) ? activeRain15m[activeRain15m.length - 1] : 0;
+            const tips = Math.round(sumToday / 0.2794);
+
+            const elToday = document.getElementById('statRainToday');
+            if (elToday) elToday.innerText = sumToday.toFixed(2) + ' mm';
+            const el15m = document.getElementById('statRain15m');
+            if (el15m) el15m.innerText = last15m.toFixed(2) + ' mm';
+            const elPeak = document.getElementById('statRainPeakRate');
+            if (elPeak) elPeak.innerText = peakRate.toFixed(2) + ' mm/h';
+            const elTips = document.getElementById('statRainTips');
+            if (elTips) elTips.innerText = tips + ' tipov';
+        }
+
+        async function fetchThingSpeakRainHistory(resultsCount) {
+            const chanId = document.getElementById('selStation').value;
+            const cfg = TS_CONFIG[chanId];
+            if (!cfg) return;
+
+            const loadingEl = document.getElementById('rainChartLoading');
+            const noticeEl = document.getElementById('rainChartNotice');
+            loadingEl.style.display = 'block';
+            noticeEl.style.display = 'none';
+
+            const url = `https://api.thingspeak.com/channels/${chanId}/feeds.json?api_key=${cfg.key}&results=${resultsCount}&status=true`;
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error("Chyba odpovede z ThingSpeak API");
+                const data = await res.json();
+
+                if (!data.feeds || data.feeds.length === 0) {
+                    throw new Error("Žiadne záznamy.");
+                }
+
+                let labels = [];
+                let rain15mSeries = [];
+                let rainCumulSeries = [];
+                let rainRateSeries = [];
+                let runningSum = 0;
+
+                for (const feed of data.feeds) {
+                    if (!feed.created_at) continue;
+                    
+                    const d = new Date(feed.created_at);
+                    let label = d.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
+                    if (resultsCount > 96) {
+                        label = `${d.getDate()}.${d.getMonth() + 1}. ` + label;
+                    }
+
+                    let r15 = (feed.field8 !== null && feed.field8 !== undefined && feed.field8 !== "") ? parseFloat(feed.field8) : 0.0;
+                    if (isNaN(r15) || r15 < 0 || r15 > 500) r15 = 0.0;
+
+                    runningSum += r15;
+                    const rRate = r15 * 4.0; // 15-min úhrn * 4 = hodinová intenzita
+
+                    labels.push(label);
+                    rain15mSeries.push(r15);
+                    rainCumulSeries.push(parseFloat(runningSum.toFixed(2)));
+                    rainRateSeries.push(parseFloat(rRate.toFixed(2)));
+                }
+
+                loadingEl.style.display = 'none';
+
+                if (labels.length === 0) {
+                    noticeEl.innerText = `ℹ️ Stanica ${cfg.name} nemá v zvolenom období záznamy o zrážkach.`;
+                    noticeEl.style.display = 'block';
+                    return;
+                }
+
+                activeRainLabels = labels;
+                activeRain15m = rain15mSeries;
+                activeRainCumulative = rainCumulSeries;
+                activeRainRate = rainRateSeries;
+                renderRainChart();
+
+            } catch (err) {
+                loadingEl.style.display = 'none';
+                noticeEl.innerText = `⚠️ Nepodarilo sa načítať dáta zrážok: ${err.message}`;
+                noticeEl.style.display = 'block';
+            }
+        }
+
+        function addLiveRainSample(timeLabel, rain15m, rainToday, rainRate) {
+            const val15 = (rain15m !== null && !isNaN(rain15m)) ? rain15m : 0;
+            const valCum = (rainToday !== null && !isNaN(rainToday)) ? rainToday : 0;
+            const valRate = (rainRate !== null && !isNaN(rainRate)) ? rainRate : 0;
+
+            liveRainLabels.push(timeLabel);
+            liveRain15m.push(val15);
+            liveRainCumulative.push(valCum);
+            liveRainRate.push(valRate);
+
+            if (liveRainLabels.length > 25) {
+                liveRainLabels.shift();
+                liveRain15m.shift();
+                liveRainCumulative.shift();
+                liveRainRate.shift();
+            }
+
+            if (rainPeriod === 'live') {
+                activeRainLabels = [...liveRainLabels];
+                activeRain15m = [...liveRain15m];
+                activeRainCumulative = [...liveRainCumulative];
+                activeRainRate = [...liveRainRate];
+                renderRainChart();
+            }
+        }
+
+        // ================= GRAF RÝCHLOSTÍ A NÁRAZOV VETRA (ALADIN / SHMÚ ŠTÝL) =================
+        let windSpeedPeriod = 'live'; // 'live' | '24h' | '3d' | '7d'
+        let gustFilterMode = 'significant'; // 'significant' (>1.3x) | 'high' (>1.5x) | 'all' | 'none'
+        let windSpeedTooltipEnabled = true;
+
+        let liveSpeedLabels = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:15'];
+        let liveSpeedAvg = [1.2, 2.0, 3.5, 4.2, 5.0, 6.5, 5.8, 4.0, 2.5, 1.8, 1.0, 0.8];
+        let liveSpeedGust = [2.0, 3.2, 5.0, 6.0, 7.5, 9.2, 8.0, 5.5, 3.8, 2.6, 1.5, 1.2];
+
+        let rawSpeedLabels = [...liveSpeedLabels];
+        let rawSpeedAvg = [...liveSpeedAvg];
+        let rawSpeedGust = [...liveSpeedGust];
+
+        let windSpeedChartInstance = null;
+
+        function getFilteredGustData(speeds, gusts, mode) {
+            return gusts.map((g, i) => {
+                const avg = speeds[i];
+                if (g === null || isNaN(g) || g <= 0) return null;
+                if (avg === null || isNaN(avg)) return g;
+                if (mode === 'none') return null;
+                if (mode === 'all') return g > avg ? g : null;
+                if (mode === 'high') {
+                    return (g >= avg * 1.5 && (g - avg) >= 2.0) ? g : null;
+                }
+                // default: 'significant' (SHMÚ ALADIN) - náraz > 1.3x priemer a rozdiel min 1.0 m/s, alebo pri vánku > 2.0 m/s
+                return ((g >= avg * 1.3 && (g - avg) >= 1.0) || (avg < 1.0 && g >= 2.0)) ? g : null;
+            });
+        }
+
+        function initWindSpeedChart() {
+            const ctx = document.getElementById('windSpeedChart').getContext('2d');
+            const filteredGusts = getFilteredGustData(rawSpeedAvg, rawSpeedGust, gustFilterMode);
+
+            windSpeedChartInstance = new Chart(ctx, {
+                data: {
+                    labels: rawSpeedLabels,
+                    datasets: [
+                        {
+                            type: 'bar',
+                            label: 'Náraz vetra (GUST)',
+                            data: filteredGusts,
+                            backgroundColor: 'rgba(244, 63, 94, 0.65)',
+                            borderColor: '#f43f5e',
+                            borderWidth: 1.5,
+                            borderRadius: { topLeft: 4, topRight: 4, bottomLeft: 0, bottomRight: 0 },
+                            barPercentage: 0.35,
+                            order: 2
+                        },
+                        {
+                            type: 'line',
+                            label: 'Priemerná rýchlosť',
+                            data: rawSpeedAvg,
+                            borderColor: '#38bdf8',
+                            backgroundColor: 'rgba(56, 189, 248, 0.14)',
+                            fill: true,
+                            tension: 0.35,
+                            borderWidth: 2.2,
+                            pointRadius: 2,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: '#38bdf8',
+                            order: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    animation: {
+                        duration: 500,
+                        easing: 'easeOutQuart'
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: { size: 10, family: 'Inter' },
+                                maxRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 10
+                            }
+                        },
+                        y: {
+                            min: 0,
+                            grace: '10%',
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.06)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: { size: 11, family: 'Inter' },
+                                callback: function(val) {
+                                    return val.toFixed(1) + ' m/s';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                boxWidth: 12,
+                                color: '#94a3b8',
+                                font: { size: 11, family: 'Inter', weight: '600' }
+                            }
+                        },
+                        tooltip: {
+                            enabled: windSpeedTooltipEnabled,
+                            backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                            titleColor: '#38bdf8',
+                            titleFont: { weight: '700', size: 12 },
+                            bodyFont: { size: 12 },
+                            borderColor: 'rgba(56, 189, 248, 0.3)',
+                            borderWidth: 1,
+                            padding: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.parsed.y === null || context.parsed.y === undefined) return null;
+                                    const valMs = parseFloat(context.parsed.y);
+                                    const valKmh = (valMs * 3.6).toFixed(1);
+                                    return ` ${context.dataset.label}: ${valMs.toFixed(1)} m/s (${valKmh} km/h)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            updateWindSpeedStats();
+        }
+
+        function updateWindSpeedStats() {
+            const validAvg = rawSpeedAvg.filter(v => v !== null && !isNaN(v) && v >= 0);
+            const validGust = rawSpeedGust.filter(v => v !== null && !isNaN(v) && v >= 0);
+
+            if (validAvg.length > 0) {
+                const lastSpd = validAvg[validAvg.length - 1];
+                const avgSpd = (validAvg.reduce((a, b) => a + b, 0) / validAvg.length).toFixed(1);
+                document.getElementById('statSpeedCurrent').innerText = `${lastSpd.toFixed(1)} m/s`;
+                document.getElementById('statSpeedAvg').innerText = `${avgSpd} m/s`;
+            } else {
+                document.getElementById('statSpeedCurrent').innerText = `-- m/s`;
+                document.getElementById('statSpeedAvg').innerText = `-- m/s`;
+            }
+
+            if (validGust.length > 0) {
+                const maxGustVal = Math.max(...validGust);
+                const maxGustKmh = (maxGustVal * 3.6).toFixed(1);
+                document.getElementById('statSpeedMaxGust').innerText = `${maxGustVal.toFixed(1)} m/s (${maxGustKmh} km/h)`;
+            } else {
+                document.getElementById('statSpeedMaxGust').innerText = `-- m/s`;
+            }
+
+            const filteredGusts = getFilteredGustData(rawSpeedAvg, rawSpeedGust, gustFilterMode);
+            const gustCount = filteredGusts.filter(g => g !== null && g > 0).length;
+            document.getElementById('statSpeedGustCount').innerText = `${gustCount}`;
+        }
+
+        function setGustFilter(mode) {
+            gustFilterMode = mode;
+
+            ['btnGustThresholdSig', 'btnGustThresholdHigh', 'btnGustThresholdAll', 'btnGustThresholdNone'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('active');
+            });
+
+            if (mode === 'significant') document.getElementById('btnGustThresholdSig')?.classList.add('active');
+            if (mode === 'high') document.getElementById('btnGustThresholdHigh')?.classList.add('active');
+            if (mode === 'all') document.getElementById('btnGustThresholdAll')?.classList.add('active');
+            if (mode === 'none') document.getElementById('btnGustThresholdNone')?.classList.add('active');
+
+            renderWindSpeedChart();
+        }
+
+        function toggleWindSpeedTooltip() {
+            windSpeedTooltipEnabled = !windSpeedTooltipEnabled;
+            const btn = document.getElementById('btnToggleWindSpeedTooltip');
+            const lbl = document.getElementById('lblWindSpeedTooltip');
+            if (btn) btn.classList.toggle('active', windSpeedTooltipEnabled);
+            if (lbl) lbl.innerText = windSpeedTooltipEnabled ? 'ZAP' : 'VYP';
+            if (windSpeedChartInstance) {
+                windSpeedChartInstance.options.plugins.tooltip.enabled = windSpeedTooltipEnabled;
+                windSpeedChartInstance.update('none');
+            }
+        }
+
+        function setWindSpeedPeriod(period) {
+            windSpeedPeriod = period;
+
+            ['btnWindSpeedPeriodLive', 'btnWindSpeedPeriod24h', 'btnWindSpeedPeriod3d', 'btnWindSpeedPeriod7d'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('active');
+            });
+
+            if (period === 'live') document.getElementById('btnWindSpeedPeriodLive')?.classList.add('active');
+            if (period === '24h') document.getElementById('btnWindSpeedPeriod24h')?.classList.add('active');
+            if (period === '3d') document.getElementById('btnWindSpeedPeriod3d')?.classList.add('active');
+            if (period === '7d') document.getElementById('btnWindSpeedPeriod7d')?.classList.add('active');
+
+            document.getElementById('windSpeedChartNotice').style.display = 'none';
+
+            if (period === 'live') {
+                document.getElementById('windSpeedChartLoading').style.display = 'none';
+                rawSpeedLabels = [...liveSpeedLabels];
+                rawSpeedAvg = [...liveSpeedAvg];
+                rawSpeedGust = [...liveSpeedGust];
+                renderWindSpeedChart();
+            } else {
+                let resultsCount = 96; // 24h
+                if (period === '3d') resultsCount = 288;
+                if (period === '7d') resultsCount = 672;
+                fetchThingSpeakWindSpeedHistory(resultsCount);
+            }
+        }
+
+        function renderWindSpeedChart() {
+            if (!windSpeedChartInstance) return;
+
+            const filteredGusts = getFilteredGustData(rawSpeedAvg, rawSpeedGust, gustFilterMode);
+
+            windSpeedChartInstance.data.labels = rawSpeedLabels;
+            windSpeedChartInstance.data.datasets[0].data = filteredGusts;
+            windSpeedChartInstance.data.datasets[1].data = rawSpeedAvg;
+
+            windSpeedChartInstance.update();
+            updateWindSpeedStats();
+        }
+
+        async function fetchThingSpeakWindSpeedHistory(resultsCount) {
+            const chanId = document.getElementById('selStation').value;
+            const cfg = TS_CONFIG[chanId];
+            if (!cfg) return;
+
+            const loadingEl = document.getElementById('windSpeedChartLoading');
+            const noticeEl = document.getElementById('windSpeedChartNotice');
+            loadingEl.style.display = 'block';
+            noticeEl.style.display = 'none';
+
+            const url = `https://api.thingspeak.com/channels/${chanId}/feeds.json?api_key=${cfg.key}&results=${resultsCount}`;
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error("Chyba odpovede z ThingSpeak API");
+                const data = await res.json();
+
+                if (!data.feeds || data.feeds.length === 0) {
+                    throw new Error("Žiadne záznamy.");
+                }
+
+                let labels = [];
+                let speedSeries = [];
+                let gustSeries = [];
+
+                for (const feed of data.feeds) {
+                    if (!feed.created_at) continue;
+                    
+                    const d = new Date(feed.created_at);
+                    let label = d.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
+                    if (resultsCount > 96) {
+                        label = `${d.getDate()}.${d.getMonth() + 1}. ` + label;
+                    }
+
+                    let spd = (feed.field6 !== null && feed.field6 !== undefined && feed.field6 !== "") ? parseFloat(feed.field6) : null;
+                    let gust = (feed.field7 !== null && feed.field7 !== undefined && feed.field7 !== "") ? parseFloat(feed.field7) : null;
+
+                    // Plauzibilný filter rýchlostí (0.0 až 50.0 m/s)
+                    if (spd !== null && (isNaN(spd) || spd < 0 || spd > 50.0)) spd = null;
+                    if (gust !== null && (isNaN(gust) || gust < 0 || gust > 55.0)) gust = null;
+
+                    // Ak nemáme gust, ale máme rýchlosť, nastavíme gust na rýchlosť
+                    if (gust === null && spd !== null) gust = spd;
+
+                    labels.push(label);
+                    speedSeries.push(spd);
+                    gustSeries.push(gust);
+                }
+
+                loadingEl.style.display = 'none';
+
+                if (labels.length === 0) {
+                    noticeEl.innerText = `ℹ️ Stanica ${cfg.name} nemá v zvolenom období záznamy o rýchlosti vetra.`;
+                    noticeEl.style.display = 'block';
+                    return;
+                }
+
+                rawSpeedLabels = labels;
+                rawSpeedAvg = speedSeries;
+                rawSpeedGust = gustSeries;
+                renderWindSpeedChart();
+
+            } catch (err) {
+                loadingEl.style.display = 'none';
+                noticeEl.innerText = `⚠️ Nepodarilo sa načítať rýchlosť vetra: ${err.message}`;
+                noticeEl.style.display = 'block';
+            }
+        }
+
+        function addLiveWindSpeedSample(timeLabel, speed, maxSpeed) {
+            if (speed === null || isNaN(speed) || speed < 0 || speed > 50.0) return;
+            const gust = (maxSpeed !== null && !isNaN(maxSpeed) && maxSpeed >= speed) ? maxSpeed : speed;
+
+            liveSpeedLabels.push(timeLabel);
+            liveSpeedAvg.push(speed);
+            liveSpeedGust.push(gust);
+
+            if (liveSpeedLabels.length > 25) {
+                liveSpeedLabels.shift();
+                liveSpeedAvg.shift();
+                liveSpeedGust.shift();
+            }
+
+            if (windSpeedPeriod === 'live') {
+                rawSpeedLabels = [...liveSpeedLabels];
+                rawSpeedAvg = [...liveSpeedAvg];
+                rawSpeedGust = [...liveSpeedGust];
+                renderWindSpeedChart();
             }
         }
 
@@ -1423,6 +2897,9 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
             }
             if (windTimelinePeriod !== 'live') {
                 setWindTimelinePeriod(windTimelinePeriod);
+            }
+            if (windSpeedPeriod !== 'live') {
+                setWindSpeedPeriod(windSpeedPeriod);
             }
         }
 
@@ -1856,6 +3333,14 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     document.getElementById('lightPercent').innerHTML = data.lightPercent.toFixed(0) + ' <span class="unit">%</span>';
                     document.getElementById('skyConditionBadge').innerText = data.skyCondition || '--';
                     document.getElementById('sunshineDuration').innerText = 'Dnešný svit: ' + (data.sunshineDuration || '--');
+                    updateSolarGauge(data.lightPercent, data.skyCondition);
+                }
+
+                if (data.rainToday !== undefined) {
+                    document.getElementById('rainToday').innerHTML = data.rainToday.toFixed(2) + ' <span class="unit">mm</span>';
+                    document.getElementById('rainIntensityBadge').innerText = data.rainIntensity || 'Bez zrážok';
+                    document.getElementById('rainSub').innerText = '15 min: ' + data.rain15m.toFixed(2) + ' mm • ' + (data.rainPulsesToday !== undefined ? data.rainPulsesToday : 0) + ' tipov';
+                    updateRainGauge(data.rainToday, data.rainIntensity);
                 }
 
                 // Table Update
@@ -1870,10 +3355,21 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 if (document.getElementById('tblSun')) {
                     document.getElementById('tblSun').innerText = data.sunshineDuration || '--';
                 }
+                if (document.getElementById('tblRainToday')) {
+                    document.getElementById('tblRainToday').innerText = (data.rainToday !== undefined) ? (data.rainToday.toFixed(2) + ' mm (' + data.rainPulsesToday + ' tipov)') : '--';
+                }
+                if (document.getElementById('tblRain15m')) {
+                    document.getElementById('tblRain15m').innerText = (data.rain15m !== undefined) ? (data.rain15m.toFixed(2) + ' mm') : '--';
+                }
+                if (document.getElementById('tblRainRate')) {
+                    document.getElementById('tblRainRate').innerText = (data.rainRate !== undefined) ? (data.rainRate.toFixed(2) + ' mm/h (' + data.rainIntensity + ')') : '--';
+                }
                 document.getElementById('tblWifiSSID').innerText = data.wifiSSID;
                 document.getElementById('tblWifiRSSI').innerText = data.rssi + ' dBm';
                 document.getElementById('tblIp').innerText = data.ip;
                 document.getElementById('tblUptime').innerText = data.uptimeSec + ' s';
+
+                const timeLabel = new Date().toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
                 // Wind Rose Update
                 if (data.windSpeed !== undefined && data.windDirDeg !== undefined) {
@@ -1882,14 +3378,27 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
                 // Wind Direction Timeline Update
                 if (data.windSpeed !== undefined && data.windDirDeg !== undefined) {
-                    const timeLabel = new Date().toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                     addLiveWindTimelineSample(timeLabel, data.windDirDeg, data.windSpeed, data.windSpeed);
                 }
 
-                // Temp Line Chart Update
+                // Wind Speed & Gusts Update
+                if (data.windSpeed !== undefined) {
+                    addLiveWindSpeedSample(timeLabel, data.windSpeed, data.windSpeedMax || data.windSpeed);
+                }
+
+                // Temp Line Chart Update (+Svetlo na pozadí)
                 if (data.tempIn !== undefined && data.tempOut !== undefined) {
-                    const timeLabel = new Date().toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                    addLiveTempSample(timeLabel, data.tempIn, data.tempOut);
+                    addLiveTempSample(timeLabel, data.tempIn, data.tempOut, data.lightPercent);
+                }
+
+                // Light Area Chart Update
+                if (data.lightPercent !== undefined) {
+                    addLiveLightSample(timeLabel, data.lightPercent);
+                }
+
+                // Rain Chart Update
+                if (data.rainToday !== undefined) {
+                    addLiveRainSample(timeLabel, data.rain15m, data.rainToday, data.rainRate);
                 }
 
             } catch(e) {
@@ -1897,8 +3406,26 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
             }
         }
 
+        async function simulateRainTip() {
+            try {
+                const btn = document.getElementById('btnSimRain');
+                if (btn) btn.style.transform = 'scale(0.95)';
+                const res = await fetch('/api/test/rain-tip', { method: 'POST' });
+                setTimeout(() => { if (btn) btn.style.transform = 'none'; }, 150);
+                if (res.ok) {
+                    fetchLive();
+                }
+            } catch (e) {
+                console.error("Simulation error:", e);
+            }
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             initTempLineChart();
+            initLightAreaChart();
+            initLightDonutChart();
+            initRainBarChart();
+            initWindSpeedChart();
             initWindRoseChart();
             initWindTimelineChart();
             fetchLive();
@@ -2288,6 +3815,7 @@ WebServerManager::WebServerManager()
       _anemometer(nullptr),
       _windVane(nullptr),
       _lightSensor(nullptr),
+      _rainGauge(nullptr),
       _wifiService(nullptr),
       _timeMgr(nullptr),
       _cloudOta(nullptr) {
@@ -2295,17 +3823,19 @@ WebServerManager::WebServerManager()
 
 void WebServerManager::begin(const TempSensorManager* tempMgr, const Anemometer* anemometer, const WindVane* windVane,
                              const WifiService* wifiService, const TimeManager* timeMgr, CloudOtaService* cloudOta,
-                             const LightSensor* lightSensor) {
+                             const LightSensor* lightSensor, RainGauge* rainGauge) {
     _tempMgr = tempMgr;
     _anemometer = anemometer;
     _windVane = windVane;
     _lightSensor = lightSensor;
+    _rainGauge = rainGauge;
     _wifiService = wifiService;
     _timeMgr = timeMgr;
     _cloudOta = cloudOta;
 
     _server.on("/", [this]() { handleRoot(); });
     _server.on("/api/live", [this]() { handleApiLive(); });
+    _server.on("/api/test/rain-tip", [this]() { handleApiTestRainTip(); });
     _server.on("/update", HTTP_GET, [this]() { handleUpdatePage(); });
     _server.on("/update", HTTP_POST, [this]() { handleUpdateDone(); }, [this]() { handleUpdateUpload(); });
     _server.on("/api/ota/check", HTTP_GET, [this]() { handleApiOtaCheck(); });
@@ -2411,13 +3941,28 @@ void WebServerManager::handleApiOtaCloudUpdate() {
     }
 }
 
+void WebServerManager::handleApiTestRainTip() {
+    if (_rainGauge) {
+        _rainGauge->simulatePulse();
+        StaticJsonDocument<128> doc;
+        doc["status"] = "ok";
+        doc["rainToday"] = _rainGauge->getRainToday();
+        doc["pulsesToday"] = _rainGauge->getPulsesToday();
+        String json;
+        serializeJson(doc, json);
+        _server.send(200, "application/json", json);
+    } else {
+        _server.send(500, "application/json", "{\"error\":\"RainGauge not initialized\"}");
+    }
+}
+
 void WebServerManager::handleApiLive() {
     if (!_tempMgr || !_anemometer || !_windVane || !_wifiService || !_timeMgr) {
         _server.send(500, "application/json", "{\"error\":\"Not initialized\"}");
         return;
     }
 
-    StaticJsonDocument<512> doc;
+    StaticJsonDocument<768> doc;
     doc["stationId"] = Config::LOC_ID;
     doc["version"] = Config::FIRMWARE_VERSION;
     doc["timestamp"] = _timeMgr->getFormattedCustom();
@@ -2438,6 +3983,15 @@ void WebServerManager::handleApiLive() {
         doc["skyCondition"] = _lightSensor->getSkyCondition();
         doc["sunshineDuration"] = _lightSensor->getSunshineFormatted();
         doc["isDirectSun"] = _lightSensor->isDirectSun();
+    }
+
+    if (_rainGauge) {
+        doc["rain15m"] = _rainGauge->getRain15Min();
+        doc["rainToday"] = _rainGauge->getRainToday();
+        doc["rainRate"] = _rainGauge->getRainRateMmH();
+        doc["rainIntensity"] = _rainGauge->getRainIntensityDescription();
+        doc["rainPulsesTotal"] = _rainGauge->getTotalPulses();
+        doc["rainPulsesToday"] = _rainGauge->getPulsesToday();
     }
 
     String json;

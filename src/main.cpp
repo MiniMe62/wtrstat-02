@@ -8,6 +8,7 @@
 #include "Anemometer.h"
 #include "WindVane.h"
 #include "LightSensor.h"
+#include "RainGauge.h"
 #include "WifiService.h"
 #include "TimeManager.h"
 #include "DataAggregator.h"
@@ -21,6 +22,7 @@ TempSensorManager tempMgr;
 Anemometer anemometer(Pinout::HALL_SENSOR);
 WindVane windVane(Pinout::WIND_VANE_PIN);
 LightSensor lightSensor(Pinout::LIGHT_SENSOR_PIN, Config::LIGHT_LOAD_RESISTOR_OHMS);
+RainGauge rainGauge(Pinout::RAIN_TIPPING_PIN, Config::RAIN_MM_PER_PULSE);
 
 WifiService wifiService;
 TimeManager timeMgr;
@@ -46,8 +48,9 @@ void cbSensorRead() {
     anemometer.update();
     lightSensor.update();
     lightSensor.updateSunshineDuration(timeMgr.getLocalTime());
-    aggregator15Min.sample(tempMgr, anemometer, windVane, lightSensor);
-    aggregator1Min.sample(tempMgr, anemometer, windVane, lightSensor);
+    rainGauge.update(timeMgr.getLocalTime());
+    aggregator15Min.sample(tempMgr, anemometer, windVane, lightSensor, &rainGauge);
+    aggregator1Min.sample(tempMgr, anemometer, windVane, lightSensor, &rainGauge);
 }
 
 // 2a. Kontrola 15-minútového intervalu každú sekundu
@@ -63,7 +66,7 @@ void cbCheckUploadMark15Min() {
         Serial.printf("\n[%s] [MARK] Zistený %d-minútový interval! Spúšťam GS/TS uploader...\n",
                       timeMgr.getFormattedCustom().c_str(), Config::MEASURE_INTERVAL_MIN);
 
-        WeatherSnapshot snap = aggregator15Min.finalizeSnapshot(currentMark, windVane);
+        WeatherSnapshot snap = aggregator15Min.finalizeSnapshot(currentMark, windVane, &rainGauge, false);
             if (snap.isValid) {
                 uploader.send15MinSnapshot(snap, timeMgr);
             } else {
@@ -73,6 +76,7 @@ void cbCheckUploadMark15Min() {
 
         aggregator15Min.reset();
         windVane.resetAggregation();
+        rainGauge.resetInterval15Min();
     } else if (s_lastUploadedMark15Min == 0) {
         // Inicializácia pri štarte, aby to neodoslalo hneď v 0. sekunde behu
         s_lastUploadedMark15Min = currentMark;
@@ -92,12 +96,13 @@ void cbCheckUploadMark1Min() {
         Serial.printf("\n[%s] [MARK] Zistený %d-minútový interval! Spúšťam AdafruitIO uploader...\n",
                       timeMgr.getFormattedCustom().c_str(), Config::MEASURE_INTERVAL_FAST_MIN);
 
-        WeatherSnapshot snap = aggregator1Min.finalizeSnapshot(currentMark, windVane);
+        WeatherSnapshot snap = aggregator1Min.finalizeSnapshot(currentMark, windVane, &rainGauge, true);
             if (snap.isValid) {
                 uploader.send1MinSnapshot(snap, timeMgr);
             }
             
         aggregator1Min.reset();
+        rainGauge.resetInterval1Min();
 
         // 2c. Kontrola On-Demand príkazov z Adafruit IO (napr. tlačidlo UPDATE)
         cloudOta.checkAdafruitCommand();
@@ -194,6 +199,7 @@ void setup() {
     anemometer.begin();
     windVane.begin();
     lightSensor.begin();
+    rainGauge.begin();
     aggregator15Min.begin();
     aggregator1Min.begin();
 
@@ -204,7 +210,7 @@ void setup() {
     if (wifiOk) {
         timeMgr.syncNTP();
     }
-    webServerMgr.begin(&tempMgr, &anemometer, &windVane, &wifiService, &timeMgr, &cloudOta, &lightSensor);
+    webServerMgr.begin(&tempMgr, &anemometer, &windVane, &wifiService, &timeMgr, &cloudOta, &lightSensor, &rainGauge);
 
     // Pridanie úloh do plánovača TaskScheduler
     runner.init();
@@ -231,7 +237,7 @@ void setup() {
         tCloudOtaBootCheck.enableDelayed(2 * 60 * 1000);
     }
     // tWindDebug.enable(); // Dočasne vypnuté pre prehľadný debug LightSensora
-    // tLiveWindDebug.enable(); // Dočasne vypnuté pre prehľadný debug LightSensora
+    tLiveWindDebug.enable(); // Živý výpis napätia a pomeru pre kalibráciu Hallov
     if (Config::DEBUG_LIGHT_SENSOR) {
         tLiveLightDebug.enable();
     }

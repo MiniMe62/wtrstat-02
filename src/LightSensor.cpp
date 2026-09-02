@@ -40,12 +40,12 @@ void LightSensor::update() {
     }
 
     // Prepočet fotoprúdu I = U / R (v mikroampéroch uA)
-    // TEMT6000 dáva cca 0.5 uA na 1 lux -> 1 uA = 2 luxy
+    // S difúznou bielou LED kupolou (difúzor tlmí cca 65-70% priameho svetla):
     float current_uA = 0.0f;
     if (_loadResistor > 0.0f) {
         current_uA = ((float)_lastMilliVolts / _loadResistor) * 1000.0f;
     }
-    _estimatedLux = current_uA * 2.0f;
+    _estimatedLux = current_uA * 35.0f;
 
     // Relatívne percento jasu (2800 mV čistého svetla = 100%)
     _brightnessPercent = ((float)_lastMilliVolts / 2800.0f) * 100.0f;
@@ -60,11 +60,11 @@ const char* LightSensor::getSkyCondition() const {
     } else if (_lastMilliVolts < Config::LIGHT_TH_OVERCAST_MV) {
         return "Husto zamracene / Dazd";
     } else if (_lastMilliVolts < Config::LIGHT_TH_CLOUDY_MV) {
-        return "Oblacno / Svetly tien";
+        return "Zamracene / Oblacno";
     } else if (_lastMilliVolts < Config::LIGHT_TH_SUNNY_MV) {
         return "Polooblacno";
     } else {
-        return "Priame slnko";
+        return "Jasno / Slnko";
     }
 }
 

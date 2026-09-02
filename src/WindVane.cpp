@@ -58,22 +58,22 @@ Smer VSV  (tab 1.373) -> Min: 1.372, Max: 1.376, Avg: 1.375 (Vzoriek: 17)
 // Kalibračná tabuľka nameraných pomerov (pomer = mV_smerovka / mV_vcc)
 // Hodnoty sú odhadnuté z pôvodných milivoltov (mV / 1650), nutná nová kalibrácia!
 const WindCalib WindVane::CALIBRATION_TABLE[WindVane::NUM_DIRECTIONS] = {
-    {0.103f,  315.0f, "SZ"},
-    {0.211f,  225.0f, "JZ"},
-    {0.371f,  135.0f, "JV"},
-    {0.496f,   45.0f, "SV"},
-    {0.644f, 270.0f, "Z"},
-    {0.685f, 292.5f, "ZSZ"},
-    {0.737f, 247.5f, "ZJZ"},
-    {0.814f,   0.0f, "S"},
-    {0.846f, 337.5f, "SSZ"},
-    {1.007f,  22.5f, "SSV"},
-    {1.106f, 180.0f, "J"},
-    {1.147f, 202.5f, "JJZ"},
-    {1.185f, 157.5f, "JJV"},
-    {1.301f,  90.0f, "V"},
-    {1.349f, 112.5f, "VJV"},
-    {1.375f,  67.5f, "VSV"}
+    {0.444f,   0.0f, "S"},
+    {0.316f,  22.5f, "SSV"},
+    {0.710f,  45.0f, "SV"},
+    {0.169f,  67.5f, "VSV"},
+    {0.200f,  90.0f, "V"},
+    {0.177f, 112.5f, "VJV"},
+    {0.876f, 135.0f, "JV"},
+    {0.231f, 157.5f, "JJV"},
+    {0.271f, 180.0f, "J"},
+    {0.247f, 202.5f, "JJZ"},
+    {1.160f, 225.0f, "JZ"},
+    {0.456f, 247.5f, "ZJZ"},
+    {0.547f, 270.0f, "Z"},
+    {0.496f, 292.5f, "ZSZ"},
+    {1.457f, 315.0f, "SZ"},
+    {0.410f, 337.5f, "SSZ"}
 };
 
 WindVane::WindVane(uint8_t pin, uint8_t vccPin)
@@ -114,7 +114,7 @@ float WindVane::readRatioAveraged(uint8_t samples) {
 }
 
 int WindVane::findClosestDirectionIndex(float measuredRatio) const {
-    if (measuredRatio < 0.05f) { // Mŕtva zóna / rozpojený obvod (menej ako 5%)
+    if (measuredRatio > 1.85f) { // Mŕtva zóna / rozpojený obvod (Pull-up vytiahne na plných ~3.3V / pomer ~2.0)
         return -1;
     }
 

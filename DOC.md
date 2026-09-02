@@ -361,9 +361,9 @@ Ostré kanály majú v `Config.h` preddefinované parametre:
 ### Krok 4: Konfigurácia Google Sheets (Keď budete pripravený)
 V priečinku `google_script/Code.gs` je pripravený skript pre automatické ukladanie:
 1. Otvorte novú Google Tabuľku na [sheets.google.com](https://sheets.google.com).
-2. V menu kliknite na **Rozšírenia (Extensions)** $\rightarrow$ **Apps Script**.
+2. V menu kliknite na **Rozšírenia (Extensions)** -> **Apps Script**.
 3. Skopírujte obsah súboru [`google_script/Code.gs`](file:///d:/SRC/Esp32/wtrStat-02/google_script/Code.gs) do editora.
-4. Kliknite na **Nasadiť (Deploy)** $\rightarrow$ **Nové nasadenie (New deployment)**:
+4. Kliknite na **Nasadiť (Deploy)** -> **Nové nasadenie (New deployment)**:
    - Typ: **Webová aplikácia (Web app)**
    - Spustiť ako (Execute as): **Ja (Me)**
    - Kto má prístup (Who has access): **Ktokoľvek (Anyone)**
@@ -377,7 +377,7 @@ V priečinku `google_script/Code.gs` je pripravený skript pre automatické ukla
 2. Skopírujte `.pio/build/esp32dev/firmware.bin` do `bin/firmware_GO85.bin`.
 3. V `version.json` zvýšte verziu pre `"GO85"`.
 4. Spravte `git push`.
-5. V Adafruit IO stlačte tlačidlo **`UPDATE`** $\rightarrow$ stanica na vidieku do 60s prejde z testovacieho profilu na ostrú produkciu.
+5. V Adafruit IO stlačte tlačidlo **`UPDATE`** -> stanica na vidieku do 60s prejde z testovacieho profilu na ostrú produkciu.
 
 ---
 
@@ -389,27 +389,133 @@ Do stanice bol úspešne integrovaný analógový senzor okolitého svetla a det
 * **Súčiastka:** Everlight ALS-PT19-315C (puzdro SMD 1206 na fialovom breakout module).
 * **Zistená polarita:** Moduly z AliExpressu majú často prehodenú orientáciu potlače (`S`, `G`, `V`) voči internému zapojeniu čipu.
 * **Správne overené zapojenie do ESP32:**
-* *Senzor bol vložený do puzdra LED žiarovky. Vyvedený 4 žilový káblik, farby sú uvedené pri Pinoch*
-  * **Pin `S`:** Pripojený na **+3.3V** (napájanie). **HNEDÝ**
-  * **Pin `G`:** Pripojený na **GND** (zem). **ZELENÝ**
-  * **Pin `V`:** Výstup signálu pripojený na **GPIO 35 (ADC1)** + **paralelný zaťažovací odpor $20\text{ k}\Omega$ do GND**.  **ŽLTÝ**
-* **Voľba odporu $20\text{ k}\Omega$:** 
-  * Zabezpečuje bleskový pád na $0\text{ V}$ v tme bez plávania náboja.
-  * Na priamom poludňajšom letnom slnku generuje napätie cca **$2.80\text{ V}$** ($93\,\%$ rozsahu ESP32), čím využíva maximum citlivosti a nehrozí presýtenie (clipping).
+* *Senzor bol vložený do puzdra LED žiarovky. Vyvedený 4-žilový káblik, farby sú uvedené pri pinoch:*
+  * **Pin `S`:** Pripojený na **+3.3V** (napájanie) – **HNEDÝ**.
+  * **Pin `G`:** Pripojený na **GND** (zem) – **ZELENÝ**.
+  * **Pin `V`:** Výstup signálu pripojený na **GPIO 35 (ADC1)** + **paralelný zaťažovací odpor 2 kOhm (2000 Ohm) do GND** – **ŽLTÝ**.
+* **Voľba odporu 2 kOhm a difúzna kupola:** 
+  * Použitá biela difúzna LED kupola chráni senzor a tlmí cca 65–70 % priameho svetla, čím zabraňuje presýteniu fototranzistora.
+  * S odporom 2 kOhm dosahuje napätie pri plnom slnku cca **2.80 V** (rozsah 0 – 2800 mV = 0 – 100 % jas).
+  * Výpočet luxov: fotoprúd $I = U / R$ v mikroampéroch ($\mu\text{A}$), prepočet s difúzorom: $\text{Lux} = I_{\mu\text{A}} \times 35.0$.
 
 ### 2. Softvérové spracovanie (`LightSensor`):
 * **50 Hz AC Filter:** Pre elimináciu pulzovania umelého osvetlenia (sieťová frekvencia 50 Hz / 100 Hz blikanie žiariviek a LED) sa robí 20 vzoriek s odstupom 1 ms (celé 20 ms AC okno).
-* **Kompenzácia nulového posunu ESP32:** Odpočítava hardvérový offset $142\text{ mV}$ na vstupe GPIO 35 (`LIGHT_ADC_ZERO_OFFSET_MV`).
+* **Kompenzácia nulového posunu ESP32:** Odpočítava hardvérový offset 142 mV na vstupe GPIO 35 (`LIGHT_ADC_ZERO_OFFSET_MV`).
+* **Prahové hodnoty stavu oblohy (Sky Condition):**
+  * `< 80 mV`: Noc / Tma
+  * `80 - 299 mV`: Husto zamračené / Dážď
+  * `300 - 649 mV`: Zamračené / Oblačno
+  * `650 - 1199 mV`: Polooblačno
+  * `>= 1200 mV`: Jasno / Priame slnko (`isDirectSun()`)
 * **Sledovanie slnečného svitu (Sunshine Duration - Campbell-Stokes princíp):**
-  * Každú minútu, kedy je obloha vyhodnotená ako `isDirectSun()` ($\ge 70\,\%$ jasu), sa pripočíta 1 minúta svitu.
+  * Každú minútu, kedy je obloha vyhodnotená ako `isDirectSun()`, sa pripočíta 1 minúta svitu.
   * O polnoci sa počítadlo automaticky zaznamená a vynuluje pre nový deň (`updateSunshineDuration()`).
 
 ### 3. Zobrazenie a výstupy:
 * **OLED Displej (128x64):** Zobrazuje jas v %, denný svit (napr. `5h 12m`), textový stav oblohy a dynamický spodný progress-bar intenzity svetla.
-* **Lokálny Web Dashboard (HTTP):** Samostatná karta `Jas a Slnko`, farebný odznak stavu oblohy a riadky v detailnej tabuľke.
+* **Lokálny Web Dashboard (HTTP):**
+  * Samostatná karta `Jas a Slnko` s odznakom stavu oblohy.
+  * **Heliograf (Campbell-Stokes Sunshine Bar):** 24-hodinový interaktívny pás vizualizujúci slnečnú aktivitu po hodinách.
+  * **Solárny budík (Solar Gauge / Donut chart):** Grafický ukazovateľ intenzity žiarenia.
+  * **Plošný graf svetla (Light Area Chart):** Časový vývoj jasu a podfarbenie svetla na pozadí teplotného grafu.
 * **JSON API (`/api/live`):** `lightPercent`, `lightMv`, `estimatedLux`, `skyCondition`, `sunshineDuration`, `isDirectSun`.
 * **ThingSpeak & Adafruit IO:** Odosielanie priemernej hodnoty jasu v 1-minútových a 15-minútových záverkách.
 
+---
 
+## 20. Hardvérová špecifikácia a odpory veternej ružice (WindVane Resistors)
 
+Veterná ružica využíva 8 fyzických jazýčkových (Reed) kontaktov s rezistormi rozmiestnenými po obvode. Pri pohybe magnetu medzi dvoma susednými kontaktmi sa zopnú oba kontakty súčasne, čím vzniká paralelná kombinácia dvoch odporov (Rp = (R1 * R2) / (R1 + R2)) a ružica tak poskytuje **16 smerov**.
+
+### 1. Zapojenie deliča napätia na doske (ESP32):
+* **Napájanie ružice (Vcc):** +3.3 V privedené na stredový medený prstenec.
+* **Signálový pin (GPIO 34):** Spojený s výstupom kontaktov ružice.
+* **Pevný Pull-Down odpor (R_fixed):** **2.2 kOhm (2k2)** zapojený medzi GPIO 34 a GND.
+* **Referenčný delič (GPIO 32):** 2x 10 kOhm z 3.3 V do GND (delí napätie presne na 0.5 * Vcc pre ratiometrické meranie).
+
+---
+
+### 2. Namerané a nominálne fyzické odpory (8 základných smerov v smere hodinových ručičiek):
+
+> **Poznámka pre osadenie nových súčiastok:**
+> Na prototype boli 2 smery vyskladané z dvojice odporov (kvôli skráteným nožičkám / vyskladaniu hodnoty). Pri výmene za nové odpory použite štandardné nominálne hodnoty z radu E24 s 1% toleranciou (5-pásikové metalizované odpory):
+
+* **S (Sever - 0.0°):** Namerané **3.26 kOhm** *(Nominál: **3.3 kOhm** - oranžová/oranžová/čierna/hnedá/hnedá)*
+* **SV (Severovýchod - 45.0°):** Namerané **6.80 kOhm** *(Nominál: **6.8 kOhm** - modrá/sivá/čierna/hnedá/hnedá)*
+* **V (Východ - 90.0°):** Namerané **1.19 kOhm** *(Nominál: **1.2 kOhm** - hnedá/červená/čierna/hnedá/hnedá; na prototype 2x v sérii, napr. 1k + 180R/200R)*
+* **JV (Juhovýchod - 135.0°):** Namerané **10.02 kOhm** *(Nominál: **10.0 kOhm** - hnedá/čierna/čierna/červená/hnedá)*
+* **J (Juh - 180.0°):** Namerané **1.81 kOhm** *(Nominál: **1.8 kOhm** - hnedá/sivá/čierna/hnedá/hnedá; na prototype 2x paralelne, napr. 3.6k || 3.6k alebo 3.3k || 3.9k)*
+* **JZ (Juhozápad - 225.0°):** Namerané **19.92 kOhm** *(Nominál: **20.0 kOhm** - červená/čierna/čierna/červená/hnedá)*
+* **Z (Západ - 270.0°):** Namerané **4.74 kOhm** *(Nominál: **4.7 kOhm** - žltá/fialová/čierna/hnedá/hnedá)*
+* **SZ (Severozápad - 315.0°):** Namerané **46.80 kOhm** *(Nominál: **47.0 kOhm** - žltá/fialová/čierna/červená/hnedá)*
+
+---
+
+### 3. Kompletná tabuľka všetkých 16 smerov (Fyzické + Paralelné medzismery):
+
+| # | Smer | Uhol | Typ | Zapojenie rezistorov | Odpor ružice (R_vane) | Teoretický pomer (Ratio) pri R_fixed = 2.2 kOhm |
+| :-: | :--- | :-: | :---: | :---: | :-: | :-: |
+| **1.** | **S** | 0.0° | Fyzický | R_S | **3.260 kOhm** | **0.806** |
+| **2.** | **SSV** | 22.5° | Kombinovaný | R_S \|\| R_SV | **2.204 kOhm** | **0.999** |
+| **3.** | **SV** | 45.0° | Fyzický | R_SV | **6.800 kOhm** | **0.489** |
+| **4.** | **VSV** | 67.5° | Kombinovaný | R_SV \|\| R_V | **1.013 kOhm** | **1.370** |
+| **5.** | **V** | 90.0° | Fyzický | R_V | **1.190 kOhm** | **1.298** |
+| **6.** | **VJV** | 112.5° | Kombinovaný | R_V \|\| R_JV | **1.064 kOhm** | **1.348** |
+| **7.** | **JV** | 135.0° | Fyzický | R_JV | **10.020 kOhm** | **0.360** |
+| **8.** | **JJV** | 157.5° | Kombinovaný | R_JV \|\| R_J | **1.533 kOhm** | **1.179** |
+| **9.** | **J** | 180.0° | Fyzický | R_J | **1.810 kOhm** | **1.097** |
+| **10.** | **JJZ** | 202.5° | Kombinovaný | R_J \|\| R_JZ | **1.659 kOhm** | **1.140** |
+| **11.** | **JZ** | 225.0° | Fyzický | R_JZ | **19.920 kOhm** | **0.199** |
+| **12.** | **ZJZ** | 247.5° | Kombinovaný | R_JZ \|\| R_Z | **3.829 kOhm** | **0.730** |
+| **13.** | **Z** | 270.0° | Fyzický | R_Z | **4.740 kOhm** | **0.634** |
+| **14.** | **ZSZ** | 292.5° | Kombinovaný | R_Z \|\| R_SZ | **4.304 kOhm** | **0.676** |
+| **15.** | **SZ** | 315.0° | Fyzický | R_SZ | **46.800 kOhm** | **0.090** |
+| **16.** | **SSZ** | 337.5° | Kombinovaný | R_SZ \|\| R_S | **3.048 kOhm** | **0.838** |
+
+> **Aktualizácia vyhodnocovania mŕtvej zóny (`WindVane.cpp`):**
+> Pri zapojení s pull-up rezistorom spôsobí rozpojenie kontaktu (mŕtva zóna medzi kontaktmi) vzostup napätia k plnému $V_{cc}$ (pomer $\approx 2.0$). Preto bola mŕtva zóna aktualizovaná z pôvodných `< 0.05` na `measuredRatio > 1.85`.
+
+---
+
+## 21. Integrácia zrážkomera (RainGauge - Tipping Bucket)
+
+Do systému bol plnohodnotne implementovaný zrážkomer s preklápacou miskou (Tipping Bucket) pre presné meranie zrážkových úhrnov a okamžitej intenzity dažďa.
+
+### 1. Hardvérové zapojenie a princíp činnosti:
+* **Princíp:** Voda steká z kalibrovaného zberného lievika do dvojitej kolísky (preklápacia miska). Po nahromadení presného objemu vody sa miska preklopí, vyleje vodu a miniatúrny neodymový magnet prebehne okolo hermetického jazýčkového kontaktu (Reed switch).
+* **Pin mikrokontroléra:** **GPIO 25** (`Pinout::RAIN_TIPPING_PIN`), nakonfigurovaný ako `INPUT_PULLUP`.
+* **Kalibračná hodnota:** $0.2794\text{ mm}$ (0.01 palca) vodného stĺpca na jeden impulz / preklop (`Config::RAIN_MM_PER_PULSE`).
+* **Hardvérový & softvérový debounce filter:**
+  * Mechanické jazýčkové kontakty trpia pri preklopení zákmity (contact bounce).
+  * V obsluhe prerušenia `rainPulseISR` (beží v IRAM na zostupnú hranu `FALLING`) je nasadený mikroprocesorový časový filter:
+    impulzy s rozostupom kratším ako $100\text{ ms}$ (`Config::RAIN_DEBOUNCE_MS`) sú ignorované.
+
+### 2. Softvérová architektúra (`RainGauge`):
+* **Bezpečné čítanie z ISR:** Nové impulzy sa z prerušenia preberajú v cykle `update()` atomicky cez `noInterrupts()` a `interrupts()`.
+* **Intervalové a kumulatívne počítadlá:**
+  * **1-minútový úhrn:** Pre rýchly prenos do Adafruit IO (`getRain1Min()`).
+  * **15-minútový úhrn:** Štandardná meteorologická záverka pre ThingSpeak a Google Sheets (`getRain15Min()`).
+  * **Denný úhrn zrážok:** Kumulatívny súčet od polnoci (`getRainToday()`). Resetuje sa automaticky presne o 00:00:00 pri zmene dňa (`day(localTime)`).
+* **Výpočet okamžitej intenzity dažďa (Rain Rate v mm/h):**
+  * Trieda udržiava 60-minútový plávajúci kruhový buffer minútových úhrnov (`_minuteHistory[60]`).
+  * Každú minútu sa starý slot vyčistí a spočíta sa suma pulzov za posledných 60 minút vynásobená kalibračným koeficientom.
+  * Výsledkom je okamžitá intenzita v $\text{mm/h}$ (`getRainRateMmH()`).
+* **Meteorologická kategorizácia intenzity zrážok:**
+  * $\le 0.01\text{ mm/h}$: *Bez zrážok*
+  * $< 2.5\text{ mm/h}$: *Slabý dážď*
+  * $2.5 - 7.5\text{ mm/h}$: *Mierny dážď*
+  * $7.6 - 49.9\text{ mm/h}$: *Silný dážď*
+  * $\ge 50.0\text{ mm/h}$: *Prudký lejak*
+
+### 3. Simulácia a manuálne testovanie:
+* Pre laboratórne a vývojové testovanie na stole bez nutnosti liať vodu do lievika obsahuje trieda metódu `simulatePulse()`.
+* Na lokálnom webovom rozhraní pribudlo REST API `POST /api/test/rain-tip`, ktoré softvérovo vyvolá preklop misky a vráti aktualizovaný stav v JSON.
+
+### 4. Integrácia do uploaderov a vizualizácie:
+* **`DataAggregator`:** Štruktúra `WeatherSnapshot` obsahuje polia `rain` (interval), `rainDaily` (dnes) a `rainRate` (intenzita).
+* **Google Sheets:** Do odosielaného riadku pribudli stĺpce `rain` (úhrn za 15 minút) a `rainDaily` (denný úhrn).
+* **ThingSpeak:** `Field 8` je vyhradený pre zrážky, status JSON odosiela `rainToday` a `rainRate`.
+* **Adafruit IO:** Publikovanie do feedov `rain` a `rain-today`.
+* **Web Dashboard:** Samostatná karta `Zrážky` s okamžitou intenzitou, 15m úhrnom, denným úhrnom, počítadlom preklopení a interaktívnym tlačidlom na testovací preklop.
+* **JSON API (`/api/live`):** Exportuje polia `rain15m`, `rainToday`, `rainRate`, `rainIntensity`, `rainPulsesTotal`, `rainPulsesToday`.
 

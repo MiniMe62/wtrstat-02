@@ -10,7 +10,7 @@
  */
 class LightSensor {
 public:
-    explicit LightSensor(uint8_t pin = Pinout::LIGHT_SENSOR_PIN, float loadResistorOhms = 220.0f);
+    explicit LightSensor(uint8_t pin = Pinout::LIGHT_SENSOR_PIN, float loadResistorOhms = 2000.0f);
 
     void begin();
     void update(); // Zmeria aktuálne napätie a prepočíta jas

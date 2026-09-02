@@ -29,7 +29,8 @@ void DataAggregator::reset() {
     _lightCount = 0;
 }
 
-void DataAggregator::sample(const TempSensorManager& tempMgr, const Anemometer& anemometer, WindVane& windVane, const LightSensor& lightSensor) {
+void DataAggregator::sample(const TempSensorManager& tempMgr, const Anemometer& anemometer, WindVane& windVane,
+                            const LightSensor& lightSensor, const RainGauge* rainGauge) {
     if (tempMgr.isReadValid()) {
         _tempInSum += tempMgr.getTempIn();
         _tempInCount++;
@@ -53,7 +54,7 @@ void DataAggregator::sample(const TempSensorManager& tempMgr, const Anemometer& 
     _lightCount++;
 }
 
-WeatherSnapshot DataAggregator::finalizeSnapshot(time_t markTimestamp, const WindVane& windVane) {
+WeatherSnapshot DataAggregator::finalizeSnapshot(time_t markTimestamp, const WindVane& windVane, const RainGauge* rainGauge, bool is1Min) {
     WeatherSnapshot snap;
     snap.timestamp = markTimestamp;
 
@@ -72,6 +73,17 @@ WeatherSnapshot DataAggregator::finalizeSnapshot(time_t markTimestamp, const Win
 
     // Priemerný jas za danú periódu
     snap.light = (_lightCount > 0) ? (float)(_lightSum / _lightCount) : 0.0f;
+
+    // Zrážky
+    if (rainGauge != nullptr) {
+        snap.rain = is1Min ? rainGauge->getRain1Min() : rainGauge->getRain15Min();
+        snap.rainDaily = rainGauge->getRainToday();
+        snap.rainRate = rainGauge->getRainRateMmH();
+    } else {
+        snap.rain = 0.0f;
+        snap.rainDaily = 0.0f;
+        snap.rainRate = 0.0f;
+    }
 
     snap.isValid = (_tempInCount > 0 || _windSpeedCount > 0 || _lightCount > 0);
 

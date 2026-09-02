@@ -69,8 +69,8 @@ namespace Config {
     constexpr bool ENABLE_THINGSPEAK_UPLOAD = false;      // Vypnuté v meste, aby nekolidovalo s testom z vidieka
     constexpr bool ENABLE_GOOGLE_SHEETS_UPLOAD = false;
     constexpr bool ENABLE_ADAFRUIT_IO_UPLOAD = false;
-    #define SIMULATE_WIND_SENSORS true                    // Simulácia vetra na stole
-    #define SIMULATE_TEMP_SENSORS true                    // Simulácia teplôt na stole
+    #define SIMULATE_WIND_SENSORS false                   // Čítať z reálnych senzorov na stole
+    #define SIMULATE_TEMP_SENSORS false                   // Simulácia teplôt na stole
 
 #elif CURRENT_SITE == SITE_GO85
     constexpr const char* LOC_ID = "GO85";
@@ -127,15 +127,20 @@ namespace Config {
     constexpr uint8_t TEMP_RESOLUTION_BITS = 10;
 
     // Kalibrácia a nastavenie TEMT6000 senzora jasu
-    constexpr float LIGHT_LOAD_RESISTOR_OHMS = 20000.0f;  // Paralelný odpor na module (20 kOhm)
+    constexpr float LIGHT_LOAD_RESISTOR_OHMS = 2000.0f;   // Paralelný záťažový odpor (2 kOhm)
     constexpr uint32_t LIGHT_ADC_ZERO_OFFSET_MV = 142;    // Hardvérový posun ESP32 ADC pri nulovom napätí (142 mV)
     constexpr bool DEBUG_LIGHT_SENSOR = true;              // Zapína periodický výpis hodnôt jasu do Serial monitora
 
-    // Prahové hodnoty osvetlenia (deliace hranice v mV, kde 3000 mV = 100% jas)
-    constexpr uint32_t LIGHT_TH_NIGHT_MV = 80;             // Hranica: Noc -> Husto zamračené (< 80 mV)
-    constexpr uint32_t LIGHT_TH_OVERCAST_MV = 350;         // Hranica: Husto zamračené -> Oblačno (80 - 349 mV)
-    constexpr uint32_t LIGHT_TH_CLOUDY_MV = 1000;          // Hranica: Oblačno -> Polooblačno (350 - 999 mV)
-    constexpr uint32_t LIGHT_TH_SUNNY_MV = 2000;           // Hranica: Polooblačno -> Priame slnko (>= 2000 mV)
+    // Prahové hodnoty osvetlenia (deliace hranice v čistých mV, kde 2800 mV = 100% jas)
+    constexpr uint32_t LIGHT_TH_NIGHT_MV = 80;             // Hranica: Noc / Tma (< 80 mV)
+    constexpr uint32_t LIGHT_TH_OVERCAST_MV = 300;         // Hranica: Husto zamračené / Dážď (80 - 299 mV)
+    constexpr uint32_t LIGHT_TH_CLOUDY_MV = 650;           // Hranica: Zamračené / Sivá obloha (300 - 649 mV)
+    constexpr uint32_t LIGHT_TH_SUNNY_MV = 1200;          // Hranica: Polooblačno (650 - 1199 mV) -> Jasno / Priame slnko (>= 1200 mV)
+
+    // Kalibrácia a nastavenie zrážkomera (Tipping Bucket)
+    constexpr float RAIN_MM_PER_PULSE = 0.2794f;          // Kalibračný objem misky: 0.2794 mm (0.01 palca) na 1 preklop
+    constexpr uint32_t RAIN_DEBOUNCE_MS = 100;           // Hardvérový/softvérový debounce filter pre jazýčkový kontakt (100 ms)
+    constexpr bool DEBUG_RAIN_GAUGE = true;               // Debug výpis pri zaznamenaní preklopu
 
     // Debug prepínače
     constexpr bool DEBUG_ENABLE = true;
