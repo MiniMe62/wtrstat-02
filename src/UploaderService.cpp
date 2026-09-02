@@ -223,8 +223,7 @@ bool UploaderService::sendToAdafruitIO(const WeatherSnapshot& snap, const TimeMa
     // Tieto kľúče musia presne zodpovedať názvom feedov v Adafruit IO skupine (meteo)
     addFeed("tempin", snap.tempIn, 2);
     addFeed("tempout", snap.tempOut, 2);
-    addFeed("humidity", snap.humidity, 0); // Vlhkosť na celé číslo
-    addFeed("pressure", snap.pressure, 0); // Tlak na celé číslo
+    // humidity a pressure vynechané pre dodržanie limitu max 10 feedov na bezplatnom účte Adafruit IO
     addFeed("wind-speed-avg", snap.windSpeedAvg, 1); // Rýchlosť na 0.1
     addFeed("wind-speed-max", snap.windSpeedMax, 1);
     addFeed("wind-direction", snap.windDirDeg, 0); // Stupne na celé číslo
