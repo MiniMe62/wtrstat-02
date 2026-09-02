@@ -6,7 +6,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>wtrStat-02 • Meteostanica</title>
+    <title id="pageTitle">wtrStat-02 v)rawliteral" WTRSTAT_FIRMWARE_VERSION R"rawliteral( • Meteostanica</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
@@ -607,7 +607,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
     <div class="container">
         <header>
             <div class="brand">
-                <h1>🌤️ wtrStat-02</h1>
+                <h1 id="appTitle">🌤️ wtrStat-02 <span style="font-size: 0.92rem; font-weight: 500; opacity: 0.8; vertical-align: middle;">v)rawliteral" WTRSTAT_FIRMWARE_VERSION R"rawliteral(</span></h1>
                 <p>Meteorologická stanica ESP32 • Lokálny Dashboard</p>
             </div>
             <div class="header-meta">
@@ -1213,7 +1213,13 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     💧 Simulovať preklop zrážkomera (+1 tip)
                 </button>
             </div>
-            wtrStat-02 • ESP32 Weather Station Firmware • <a href="/update" style="color: var(--primary); text-decoration: none;">⚙️ OTA Update</a>
+            <div style="margin-bottom: 6px; font-weight: 500;">
+                wtrStat-02 • ESP32 Weather Station Firmware • <a href="/update" style="color: var(--primary); text-decoration: none;">⚙️ OTA Update</a>
+            </div>
+            <div style="font-size: 0.78rem; opacity: 0.85; margin-top: 4px;" id="footerBuildInfo">
+                Firmware: <span id="fwVersion" style="color: var(--primary); font-weight: 600;">v)rawliteral" WTRSTAT_FIRMWARE_VERSION R"rawliteral(</span>
+                • Zostavené: <span id="fwBuild" style="font-weight: 600;">)rawliteral" __DATE__ " " __TIME__ R"rawliteral(</span>
+            </div>
         </footer>
     </div>
 
@@ -3369,6 +3375,19 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 document.getElementById('tblIp').innerText = data.ip;
                 document.getElementById('tblUptime').innerText = data.uptimeSec + ' s';
 
+                if (data.version) {
+                    if (document.getElementById('fwVersion')) {
+                        document.getElementById('fwVersion').innerText = 'v' + data.version + (data.stationId ? ' (' + data.stationId + ')' : '');
+                    }
+                    if (document.getElementById('fwBuild') && data.buildDate) {
+                        document.getElementById('fwBuild').innerText = data.buildDate + ' ' + (data.buildTime || '');
+                    }
+                    if (document.getElementById('appTitle')) {
+                        document.getElementById('appTitle').innerHTML = '🌤️ wtrStat-02 <span style="font-size: 0.92rem; font-weight: 500; opacity: 0.8; vertical-align: middle;">v' + data.version + '</span>';
+                    }
+                    document.title = 'wtrStat-02 v' + data.version + ' • ' + (data.stationId || 'Meteostanica');
+                }
+
                 const timeLabel = new Date().toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
                 // Wind Rose Update
@@ -3604,7 +3623,8 @@ static const char UPDATE_HTML[] PROGMEM = R"rawliteral(
 
             <div class="info-grid">
                 <div><span>Stanica:</span> <b id="lblSite">--</b></div>
-                <div><span>Verzia FW:</span> <b id="lblVer">--</b></div>
+                <div><span>Verzia FW:</span> <b id="lblVer">v)rawliteral" WTRSTAT_FIRMWARE_VERSION R"rawliteral(</b></div>
+                <div><span>Zostavené:</span> <b id="lblBuild">)rawliteral" __DATE__ " " __TIME__ R"rawliteral(</b></div>
             </div>
 
             <!-- GitHub Cloud OTA Section -->
@@ -3647,6 +3667,10 @@ static const char UPDATE_HTML[] PROGMEM = R"rawliteral(
             .then(r => r.json())
             .then(d => {
                 document.getElementById('lblSite').textContent = d.stationId || 'TEST';
+                if (d.version) document.getElementById('lblVer').textContent = 'v' + d.version;
+                if (d.buildDate && document.getElementById('lblBuild')) {
+                    document.getElementById('lblBuild').textContent = d.buildDate + ' ' + (d.buildTime || '');
+                }
             })
             .catch(() => {});
 
@@ -3965,6 +3989,8 @@ void WebServerManager::handleApiLive() {
     StaticJsonDocument<768> doc;
     doc["stationId"] = Config::LOC_ID;
     doc["version"] = Config::FIRMWARE_VERSION;
+    doc["buildDate"] = __DATE__;
+    doc["buildTime"] = __TIME__;
     doc["timestamp"] = _timeMgr->getFormattedCustom();
     doc["tempIn"] = _tempMgr->getTempIn();
     doc["tempOut"] = _tempMgr->getTempOut();

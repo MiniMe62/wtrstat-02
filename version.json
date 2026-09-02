@@ -1,8 +1,8 @@
 {
   "TEST_VIDIEK": {
-    "version": "2.0.2",
+    "version": "2.1.0",
     "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_TEST_VIDIEK.bin",
-    "notes": "On-Demand OTA cez Adafruit IO trigger, sifrovany kluc a nocna kontrola o 00:10"
+    "notes": "v2.1.0: RainGauge zrazkomer, kalibracia jasu TEMT6000 s kupolou, Campbell-Stokes heliograf, zobrazenie verzie a casu zostavenia na webe"
   },
   "TEST_MESTO": {
     "version": "2.0.2",
