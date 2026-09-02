@@ -12,7 +12,7 @@ bool CloudOtaService::isNewerVersion(const String& newVer, const String& currVer
 }
 
 bool CloudOtaService::parseVersionJson(const String& json, OtaCheckResult& result) {
-    StaticJsonDocument<1024> doc;
+    StaticJsonDocument<2048> doc;
     DeserializationError error = deserializeJson(doc, json);
     if (error) {
         result.error = "Chyba parsovania JSON z GitHubu";
