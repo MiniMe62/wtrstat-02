@@ -14,9 +14,9 @@
 #define SITE_RU48        4  // Ostrá produkcia mesto
 
 // Vyberte aktívny profil pre kompiláciu:
-#define CURRENT_SITE SITE_TEST_MESTO
+#define CURRENT_SITE SITE_TEST_VIDIEK
 
-#define WTRSTAT_FIRMWARE_VERSION "2.1.0"
+#define WTRSTAT_FIRMWARE_VERSION "2.2.0"
 
 namespace Config {
     // Verzia firmvéru a vzdialené aktualizácie

@@ -519,3 +519,63 @@ Do systému bol plnohodnotne implementovaný zrážkomer s preklápacou miskou (
 * **Web Dashboard:** Samostatná karta `Zrážky` s okamžitou intenzitou, 15m úhrnom, denným úhrnom, počítadlom preklopení a interaktívnym tlačidlom na testovací preklop.
 * **JSON API (`/api/live`):** Exportuje polia `rain15m`, `rainToday`, `rainRate`, `rainIntensity`, `rainPulsesTotal`, `rainPulsesToday`.
 
+---
+
+## 22. Rekonštrukcia veternej ružice (WindVane V2 - Polovodičové riešenie s Hallovými čipmi a diódami)
+
+Pre zabezpečenie dlhoročnej bezúdržbovej prevádzky na streche prešla veterná ružica kompletnou generálnou rekonštrukciou (prechod z mechanických jazýčkových REED kontaktov na bezkontaktné polovodiče).
+
+### 1. Dôvod zlyhania pôvodnej verzie V1 (Reed kontakty):
+* **Tepelné šoky na plechovej streche:** Rozdiely teplôt (cez deň +55 °C na priamom slnku, v noci +10 °C) spôsobovali mikropraskliny v sklenených bankách REED spínačov. Vniknutá vlhkosť a kyslík spôsobili oxidáciu kontaktov.
+* **Mechanická únava:** Milióny zopnutí a nárazov kovových jazýčkov viedli k mechanickému zlomeniu alebo zapečeniu kontaktov už po 2 týždňoch prevádzky.
+
+### 2. Hardvérová architektúra WindVane V2:
+* **Senzory:** 8x omnipolárny mikrovýkonový Hallov spínač **4913B** (puzdro TO-92S).
+  * *Pin 1 (VDD):* Pripojený na vnútorný krúžok (+3.3V).
+  * *Pin 2 (GND):* Pripojený na stredný krúžok (Zem / GND).
+  * *Pin 3 (OUT):* Pripojený na katódu (pásik) diódy 1N4148.
+* **Izolačné diódy (8x 1N4148):**
+  * Čipy 4913B majú CMOS Push-Pull výstup (v neaktívnom stave tlačia von +3.3V).
+  * Diódy 1N4148 zapojené v sérii s každým smerovým odporom (katódou smerom k čipu) zablokujú spätných +3.3V z neaktívnych vetiev a premenia výstupy na čistý, nezávislý **Open-Drain**.
+* **Odporový delič a odrušenie na doske ESP32:**
+  * **Pull-Up rezistor:** **10 kΩ** (1%) zapojený medzi `+3.3V` a `GPIO 34`.
+  * **Odrušovací kondenzátor:** **100 nF** (Green Cap Mylar / keramika) medzi `GPIO 34` a `GND` pre 100% potlačenie šumu na 10 m kábli.
+  * **Referenčný delič:** 2x 10 kΩ medzi `+3.3V` a `GND` pripojený na `GPIO 32` ($V_{CC\_REF}$).
+
+### 3. Fyzické odpory na ružici (Namerané hodnoty):
+* **V (Východ - 90.0°):** `1.11 kΩ`
+* **J (Juh - 180.0°):** `1.57 kΩ`
+* **S (Sever - 0.0°):** `2.85 kΩ`
+* **Z (Západ - 270.0°):** `3.76 kΩ`
+* **SV (Severovýchod - 45.0°):** `5.50 kΩ`
+* **JV (Juhovýchod - 135.0°):** `7.80 kΩ`
+* **JZ (Juhozápad - 225.0°):** `13.80 kΩ`
+* **SZ (Severozápad - 315.0°):** `26.80 kΩ`
+
+### 4. Master kalibračná tabuľka (16 smerov, >2300 reálnych meraní):
+
+| Smer | Názov | Uhol | Reálny rozptyl (Min – Max) | Nastavený stred v tabuľke |
+| :---: | :--- | :---: | :---: | :---: |
+| **S** | Sever | 0.0° | 0.730 – 0.741 | **`0.735`** |
+| **SSV** | Severo-severovýchod | 22.5° | 0.609 – 0.620 | **`0.615`** |
+| **SV** | Severovýchod | 45.0° | 0.988 – 1.000 | **`0.995`** |
+| **VSV** | Východo-severovýchod | 67.5° | 0.471 – 0.481 | **`0.476`** |
+| **V** | Východ | 90.0° | 0.505 – 0.513 | **`0.509`** |
+| **VJV** | Východo-juhovýchod | 112.5° | 0.481 – 0.488 | **`0.486`** |
+| **JV** | Juhovýchod | 135.0° | 1.145 – 1.155 | **`1.150`** |
+| **JJV** | Juho-juhovýchod | 157.5° | 0.535 – 0.546 | **`0.540`** |
+| **J** | Juh | 180.0° | 0.581 – 0.591 | **`0.586`** |
+| **JJZ** | Juho-juhozápad | 202.5° | 0.555 – 0.564 | **`0.559`** |
+| **JZ** | Juhozápad | 225.0° | 1.419 – 1.429 | **`1.423`** |
+| **ZJZ** | Západo-juhozápad | 247.5° | 0.772 – 0.782 | **`0.776`** |
+| **Z** | Západ | 270.0° | 0.855 – 0.866 | **`0.861`** |
+| **ZSZ** | Západo-severozápad | 292.5° | 0.813 – 0.823 | **`0.818`** |
+| **SZ** | Severozápad | 315.0° | 1.663 – 1.675 | **`1.669`** |
+| **SSZ** | Severo-severozápad | 337.5° | 0.666 – 0.715 | **`0.710`** |
+| **--** | *Mŕtva zóna (rozpojené)* | -- | $\approx 1.95 - 2.00$ | **`1.960`** *(Filter: > 1.85)* |
+
+### 5. Ochrana pred vlhkosťou (Inštalácia):
+* **Conformal Coating:** Celý disk ružice (spájkované spoje, medené krúžky, nožičky čipov a diód) je kompletne prelakovaný ochranným lakom.
+* **Drenáž:** V spodnom kryte je pripravený 1.5 mm odkvapkávací otvor na odvod prípadného kondenzátu.
+
+

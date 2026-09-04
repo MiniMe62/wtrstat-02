@@ -51,29 +51,46 @@ Smer V    (tab 1.300) -> Min: 1.299, Max: 1.303, Avg: 1.301 (Vzoriek: 13)
 Smer VJV  (tab 1.349) -> Min: 1.346, Max: 1.353, Avg: 1.349 (Vzoriek: 13)
 Smer VSV  (tab 1.373) -> Min: 1.372, Max: 1.376, Avg: 1.375 (Vzoriek: 17)
 
-
+4.9.2026 12:15 - Finálna Master kalibrácia WindVane V2 (150 vzoriek/smer, spolu >2300 meraní)
+=== WindVane Kalibračné Štatistiky (Pomer) ===
+Smer S    (tab 0.735) -> Min: 0.730, Max: 0.741, Avg: 0.735 (Vzoriek: 140)
+Smer SSV  (tab 0.615) -> Min: 0.609, Max: 0.620, Avg: 0.615 (Vzoriek: 134)
+Smer SV   (tab 0.995) -> Min: 0.988, Max: 1.000, Avg: 0.995 (Vzoriek: 140)
+Smer VSV  (tab 0.476) -> Min: 0.471, Max: 0.481, Avg: 0.475 (Vzoriek: 149)
+Smer V    (tab 0.509) -> Min: 0.505, Max: 0.513, Avg: 0.509 (Vzoriek: 142)
+Smer VJV  (tab 0.486) -> Min: 0.481, Max: 0.488, Avg: 0.484 (Vzoriek: 157)
+Smer JV   (tab 1.150) -> Min: 1.145, Max: 1.155, Avg: 1.150 (Vzoriek: 140)
+Smer JJV  (tab 0.540) -> Min: 0.535, Max: 0.546, Avg: 0.540 (Vzoriek: 150)
+Smer J    (tab 0.586) -> Min: 0.581, Max: 0.591, Avg: 0.586 (Vzoriek: 140)
+Smer JJZ  (tab 0.559) -> Min: 0.555, Max: 0.564, Avg: 0.559 (Vzoriek: 144)
+Smer JZ   (tab 1.423) -> Min: 1.419, Max: 1.429, Avg: 1.423 (Vzoriek: 149)
+Smer ZJZ  (tab 0.776) -> Min: 0.772, Max: 0.782, Avg: 0.776 (Vzoriek: 156)
+Smer Z    (tab 0.861) -> Min: 0.855, Max: 0.866, Avg: 0.861 (Vzoriek: 158)
+Smer ZSZ  (tab 0.818) -> Min: 0.813, Max: 0.823, Avg: 0.818 (Vzoriek: 138)
+Smer SZ   (tab 1.669) -> Min: 1.663, Max: 1.675, Avg: 1.669 (Vzoriek: 142)
+Smer SSZ  (tab 0.710) -> Min: 0.666, Max: 0.715, Avg: 0.710 (Vzoriek: 159)
 */
 
 
 // Kalibračná tabuľka nameraných pomerov (pomer = mV_smerovka / mV_vcc)
 // Hodnoty sú odhadnuté z pôvodných milivoltov (mV / 1650), nutná nová kalibrácia!
 const WindCalib WindVane::CALIBRATION_TABLE[WindVane::NUM_DIRECTIONS] = {
-    {0.444f,   0.0f, "S"},
-    {0.316f,  22.5f, "SSV"},
-    {0.710f,  45.0f, "SV"},
-    {0.169f,  67.5f, "VSV"},
-    {0.200f,  90.0f, "V"},
-    {0.177f, 112.5f, "VJV"},
-    {0.876f, 135.0f, "JV"},
-    {0.231f, 157.5f, "JJV"},
-    {0.271f, 180.0f, "J"},
-    {0.247f, 202.5f, "JJZ"},
-    {1.160f, 225.0f, "JZ"},
-    {0.456f, 247.5f, "ZJZ"},
-    {0.547f, 270.0f, "Z"},
-    {0.496f, 292.5f, "ZSZ"},
-    {1.457f, 315.0f, "SZ"},
-    {0.410f, 337.5f, "SSZ"}
+    {0.735f,   0.0f, "S"},
+    {0.615f,  22.5f, "SSV"},
+    {0.995f,  45.0f, "SV"},
+    {0.476f,  67.5f, "VSV"},
+    {0.509f,  90.0f, "V"},
+    {0.486f, 112.5f, "VJV"},
+    {1.150f, 135.0f, "JV"},
+    {0.540f, 157.5f, "JJV"},
+    {0.586f, 180.0f, "J"},
+    {0.559f, 202.5f, "JJZ"},
+    {1.423f, 225.0f, "JZ"},
+    {0.776f, 247.5f, "ZJZ"},
+    {0.861f, 270.0f, "Z"},
+    {0.818f, 292.5f, "ZSZ"},
+    {1.669f, 315.0f, "SZ"},
+    {0.710f, 337.5f, "SSZ"}
 };
 
 WindVane::WindVane(uint8_t pin, uint8_t vccPin)

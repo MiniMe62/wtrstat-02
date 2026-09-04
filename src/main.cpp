@@ -177,8 +177,8 @@ Task tCheckUpload15Min(1000, TASK_FOREVER, &cbCheckUploadMark15Min);
 Task tCheckUpload1Min(1000, TASK_FOREVER, &cbCheckUploadMark1Min);
 Task tNtpSync(3600000, TASK_FOREVER, &cbNtpPeriodicSync); // Každú 1 hodinu
 Task tCloudOtaBootCheck(120000, TASK_ONCE, &cbCloudOtaAutoCheck); // Jednorazová kontrola 2 minúty po štarte
-Task tWindDebug(2000, TASK_FOREVER, &cbPrintWindDebug); // Debug WindVane každých 10 sekúnd (len pre vývoj, vypnúť v produkcii) 
-Task tLiveWindDebug(2000, TASK_FOREVER, &cbPrintLiveWindDebug);
+Task tWindDebug(10000, TASK_FOREVER, &cbPrintWindDebug); // Štatistická tabuľka každých 10 sekúnd
+Task tLiveWindDebug(2000, TASK_FOREVER, &cbPrintLiveWindDebug); // Živý výpis každé 2 sekundy
 Task tLiveLightDebug(2000, TASK_FOREVER, &cbPrintLiveLightDebug);
 
 void setup() {
@@ -236,8 +236,8 @@ void setup() {
     if (Config::AUTO_UPDATE_FROM_GITHUB) {
         tCloudOtaBootCheck.enableDelayed(2 * 60 * 1000);
     }
-    // tWindDebug.enable(); // Dočasne vypnuté pre prehľadný debug LightSensora
-    tLiveWindDebug.enable(); // Živý výpis napätia a pomeru pre kalibráciu Hallov
+    tWindDebug.enable();     // Štatistická tabuľka (min/max/avg/počet vzoriek) každých 10s
+    tLiveWindDebug.enable(); // Živý výpis napätia a pomeru každé 2s
     if (Config::DEBUG_LIGHT_SENSOR) {
         tLiveLightDebug.enable();
     }
