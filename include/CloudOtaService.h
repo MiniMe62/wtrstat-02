@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
-#include <HTTPUpdate.h>
+#include <Update.h>
 #include <ArduinoJson.h>
 
 struct OtaCheckResult {

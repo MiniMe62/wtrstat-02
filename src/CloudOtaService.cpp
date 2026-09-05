@@ -81,32 +81,74 @@ bool CloudOtaService::performUpdate(const String& url) {
         return false;
     }
 
-    Serial.printf("[CloudOTA] Spustam stahovanie a flashovanie z: %s\n", url.c_str());
+    Serial.printf("[CloudOTA] Spúšťam priame HTTPS OTA sťahovanie z: %s\n", url.c_str());
 
     WiFiClientSecure client;
-    client.setInsecure();
+    client.setInsecure(); // GitHub HTTPS certifikáty bez potreby správy Root CA
 
-    httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-    httpUpdate.rebootOnUpdate(true);
+    HTTPClient http;
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    http.setTimeout(35000); // 35s timeout pre stabilné stiahnutie 1.2 MB
 
-    t_httpUpdate_return ret = httpUpdate.update(client, url);
-
-    switch (ret) {
-        case HTTP_UPDATE_FAILED:
-            Serial.printf("[CloudOTA] Aktualizacia zlyhala! Chyba (%d): %s\n",
-                          httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
-            return false;
-
-        case HTTP_UPDATE_NO_UPDATES:
-            Serial.println("[CloudOTA] Ziadna nova verzia");
-            return false;
-
-        case HTTP_UPDATE_OK:
-            Serial.println("[CloudOTA] Aktualizacia uspesna! Restartujem...");
-            return true;
+    if (!http.begin(client, url)) {
+        Serial.println("[CloudOTA] Nepodarilo sa inicializovať HTTPClient spojenie.");
+        return false;
     }
 
-    return false;
+    int httpCode = http.GET();
+    if (httpCode != HTTP_CODE_OK && httpCode != 200) {
+        Serial.printf("[CloudOTA] HTTP GET zlyhal s kódom: %d (%s)\n", httpCode, http.errorToString(httpCode).c_str());
+        http.end();
+        return false;
+    }
+
+    int contentLength = http.getSize();
+    Serial.printf("[CloudOTA] Server nahlásil veľkosť binárky: %d bajtov\n", contentLength);
+
+    if (contentLength <= 0) {
+        Serial.println("[CloudOTA] Chyba: Neplatná veľkosť súboru (Content-Length <= 0)!");
+        http.end();
+        return false;
+    }
+
+    if (!Update.begin(contentLength)) {
+        Serial.printf("[CloudOTA] Update.begin zlyhal! Nedostatok miesta v OTA partícii. Kód chyby: %u\n", Update.getError());
+        http.end();
+        return false;
+    }
+
+    Serial.println("[CloudOTA] Zapisujem streamované dáta priamo do flash pamäte...");
+    WiFiClient* stream = http.getStreamPtr();
+    size_t written = Update.writeStream(*stream);
+
+    if (written != (size_t)contentLength) {
+        Serial.printf("[CloudOTA] Zlyhanie: Zapísané iba %u z %d bajtov! Prerušujem.\n", written, contentLength);
+        Update.abort();
+        http.end();
+        return false;
+    }
+
+    if (!Update.end()) {
+        Serial.printf("[CloudOTA] Overenie a finalizácia zápisu zlyhala! Kód chyby: %u\n", Update.getError());
+        http.end();
+        return false;
+    }
+
+    if (!Update.isFinished()) {
+        Serial.println("[CloudOTA] Chyba: Zápis OTA nie je kompletne dokončený!");
+        http.end();
+        return false;
+    }
+
+    Serial.println("\n[CloudOTA] ==========================================");
+    Serial.println("[CloudOTA] AKTUALIZÁCIA ÚSPEŠNE DOKONČENÁ!");
+    Serial.println("[CloudOTA] ESP32 sa reštartuje do nového firmvéru...");
+    Serial.println("[CloudOTA] ==========================================\n");
+
+    http.end();
+    delay(1000);
+    ESP.restart();
+    return true;
 }
 
 void CloudOtaService::resetAdafruitCommandFeed() {
