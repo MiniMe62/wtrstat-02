@@ -1,5 +1,6 @@
 #include "WindVane.h"
 #include <cmath>
+#include <algorithm>
 
 // Kalibračná tabuľka nameraných mV z wtrStat-01 pre 16 smerov
 /* 7.8.2024 - aktualizovaná kalibračná tabuľka po testovaní na wtrStat-02
@@ -29,10 +30,7 @@ Smer JJZ  (tab 1.164) -> Min: 1.164, Max: 1.164, Avg: 1.164 (Vzoriek: 13)
 Smer JJV  (tab 1.198) -> Min: 1.198, Max: 1.198, Avg: 1.198 (Vzoriek: 14)
 Smer V    (tab 1.316) -> Min: 1.316, Max: 1.316, Avg: 1.316 (Vzoriek: 33)
 Smer VJV  (tab 1.365) -> Min: 1.365, Max: 1.365, Avg: 1.365 (Vzoriek: 13)
-Smer VSV  (tab 1.386) -> Min: 1.386, Max: 1.386, Avg: 1.386 (Vzoriek: 12)
-
-7.8.2026 19:35 Namerane na funkcnom WindVane
-
+Smer VSV  (tab 1.386) -> Min: 1.386, Max: 1.386, Avg: 1.386 (7.8.2026 19:35 Namerane na funkcnom WindVane
 === WindVane Kalibračné Štatistiky (Pomer) ===
 Smer SZ   (tab 0.103) -> Min: 0.100, Max: 0.106, Avg: 0.103 (Vzoriek: 12)
 Smer JZ   (tab 0.210) -> Min: 0.209, Max: 0.213, Avg: 0.211 (Vzoriek: 15)
@@ -51,46 +49,44 @@ Smer V    (tab 1.300) -> Min: 1.299, Max: 1.303, Avg: 1.301 (Vzoriek: 13)
 Smer VJV  (tab 1.349) -> Min: 1.346, Max: 1.353, Avg: 1.349 (Vzoriek: 13)
 Smer VSV  (tab 1.373) -> Min: 1.372, Max: 1.376, Avg: 1.375 (Vzoriek: 17)
 
-4.9.2026 12:15 - Finálna Master kalibrácia WindVane V2 (150 vzoriek/smer, spolu >2300 meraní)
-=== WindVane Kalibračné Štatistiky (Pomer) ===
-Smer S    (tab 0.735) -> Min: 0.730, Max: 0.741, Avg: 0.735 (Vzoriek: 140)
-Smer SSV  (tab 0.615) -> Min: 0.609, Max: 0.620, Avg: 0.615 (Vzoriek: 134)
-Smer SV   (tab 0.995) -> Min: 0.988, Max: 1.000, Avg: 0.995 (Vzoriek: 140)
-Smer VSV  (tab 0.476) -> Min: 0.471, Max: 0.481, Avg: 0.475 (Vzoriek: 149)
-Smer V    (tab 0.509) -> Min: 0.505, Max: 0.513, Avg: 0.509 (Vzoriek: 142)
-Smer VJV  (tab 0.486) -> Min: 0.481, Max: 0.488, Avg: 0.484 (Vzoriek: 157)
-Smer JV   (tab 1.150) -> Min: 1.145, Max: 1.155, Avg: 1.150 (Vzoriek: 140)
-Smer JJV  (tab 0.540) -> Min: 0.535, Max: 0.546, Avg: 0.540 (Vzoriek: 150)
-Smer J    (tab 0.586) -> Min: 0.581, Max: 0.591, Avg: 0.586 (Vzoriek: 140)
-Smer JJZ  (tab 0.559) -> Min: 0.555, Max: 0.564, Avg: 0.559 (Vzoriek: 144)
-Smer JZ   (tab 1.423) -> Min: 1.419, Max: 1.429, Avg: 1.423 (Vzoriek: 149)
-Smer ZJZ  (tab 0.776) -> Min: 0.772, Max: 0.782, Avg: 0.776 (Vzoriek: 156)
-Smer Z    (tab 0.861) -> Min: 0.855, Max: 0.866, Avg: 0.861 (Vzoriek: 158)
-Smer ZSZ  (tab 0.818) -> Min: 0.813, Max: 0.823, Avg: 0.818 (Vzoriek: 138)
-Smer SZ   (tab 1.669) -> Min: 1.663, Max: 1.675, Avg: 1.669 (Vzoriek: 142)
-Smer SSZ  (tab 0.710) -> Min: 0.666, Max: 0.715, Avg: 0.710 (Vzoriek: 159)
+5.9.2026 - Reálna strešná kalibrácia TEST_VIDIEK (>12 800 meraní pri vetre z JZ sektora)
+S   : 0.737 (0.725-0.755) n=74
+SSV : 0.604 (0.601-0.639) n=2593
+SV  : 1.017 (0.961-1.064) n=53
+V   : 0.501 (0.499-0.503) n=20
+VJV : 0.493 (0.489-0.496) n=18
+JV  : 1.170 (1.076-1.279) n=238
+JJV : 0.528 (0.525-0.530) n=42
+J   : 0.579 (0.573-0.600) n=1925
+JJZ : 0.560 (0.550-0.572) n=286
+JZ  : 1.442 (1.314-1.459) n=5913
+ZJZ : 0.791 (0.756-0.797) n=326
+Z   : 0.879 (0.840-0.923) n=959
+ZSZ : 0.817 (0.797-0.839) n=182
+SZ  : 1.691 (1.626-1.705) n=193
+SSZ : 0.688 (0.671-0.706) n=3
 */
 
 
 // Kalibračná tabuľka nameraných pomerov (pomer = mV_smerovka / mV_vcc)
-// Hodnoty sú odhadnuté z pôvodných milivoltov (mV / 1650), nutná nová kalibrácia!
+// Aktualizované 5.9.2026 podľa reálnej strešnej kalibrácie SITE_TEST_VIDIEK
 const WindCalib WindVane::CALIBRATION_TABLE[WindVane::NUM_DIRECTIONS] = {
-    {0.735f,   0.0f, "S"},
-    {0.615f,  22.5f, "SSV"},
-    {0.995f,  45.0f, "SV"},
+    {0.737f,   0.0f, "S"},
+    {0.604f,  22.5f, "SSV"},
+    {1.017f,  45.0f, "SV"},
     {0.476f,  67.5f, "VSV"},
-    {0.509f,  90.0f, "V"},
-    {0.486f, 112.5f, "VJV"},
-    {1.150f, 135.0f, "JV"},
-    {0.540f, 157.5f, "JJV"},
-    {0.586f, 180.0f, "J"},
-    {0.559f, 202.5f, "JJZ"},
-    {1.423f, 225.0f, "JZ"},
-    {0.776f, 247.5f, "ZJZ"},
-    {0.861f, 270.0f, "Z"},
-    {0.818f, 292.5f, "ZSZ"},
-    {1.669f, 315.0f, "SZ"},
-    {0.710f, 337.5f, "SSZ"}
+    {0.501f,  90.0f, "V"},
+    {0.493f, 112.5f, "VJV"},
+    {1.170f, 135.0f, "JV"},
+    {0.528f, 157.5f, "JJV"},
+    {0.579f, 180.0f, "J"},
+    {0.560f, 202.5f, "JJZ"},
+    {1.442f, 225.0f, "JZ"},
+    {0.791f, 247.5f, "ZJZ"},
+    {0.879f, 270.0f, "Z"},
+    {0.817f, 292.5f, "ZSZ"},
+    {1.691f, 315.0f, "SZ"},
+    {0.688f, 337.5f, "SSZ"}
 };
 
 WindVane::WindVane(uint8_t pin, uint8_t vccPin)
@@ -119,14 +115,31 @@ float WindVane::readRatioAveraged(uint8_t samples) {
 #endif
 #endif
 
-    uint32_t vaneSum = 0;
-    uint32_t vccSum = 0;
+    if (samples < 4) samples = 4;
+    if (samples > 32) samples = 32;
+
+    uint32_t vaneBuf[32];
+    uint32_t vccBuf[32];
+
     for (uint8_t i = 0; i < samples; i++) {
-        vaneSum += analogReadMilliVolts(_pin);
-        vccSum += analogReadMilliVolts(_vccPin);
+        vaneBuf[i] = analogReadMilliVolts(_pin);
+        vccBuf[i] = analogReadMilliVolts(_vccPin);
         delayMicroseconds(50);
     }
     
+    // Orezaný priemer (Trimmed Mean): zoradíme a zahodíme 2 najvyššie a 2 najnižšie vzorky.
+    // Tým sa dokonale odfiltrujú prechodové zákmity pri pohybe magnetu medzi čipmi.
+    std::sort(vaneBuf, vaneBuf + samples);
+    std::sort(vccBuf, vccBuf + samples);
+
+    uint8_t trim = (samples >= 8) ? 2 : 1;
+    uint32_t vaneSum = 0;
+    uint32_t vccSum = 0;
+    for (uint8_t i = trim; i < samples - trim; i++) {
+        vaneSum += vaneBuf[i];
+        vccSum += vccBuf[i];
+    }
+
     if (vccSum == 0) return 0.0f; // Ochrana pred delením nulou
     return (float)vaneSum / (float)vccSum;
 }
