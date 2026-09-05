@@ -213,17 +213,19 @@ bool CloudOtaService::checkAdafruitCommand() {
                                   res.currentVersion.c_str());
                 }
             } else if (val.equalsIgnoreCase("CALIB") || val.equalsIgnoreCase("CALIB_START") || val.equalsIgnoreCase("CALIBRATION")) {
-                Serial.println("\n[CloudOTA] ==========================================");
-                Serial.println("[CloudOTA] Prijatý príkaz CALIB z Adafruit IO!");
-                Serial.println("[CloudOTA] ==========================================");
-                setCalibMode(true);
-                setAdafruitCommandStatus("CALIB_ON");
-            } else if (val.equalsIgnoreCase("STOP") || val.equalsIgnoreCase("CALIB_STOP") || val.equalsIgnoreCase("CALIB_OFF")) {
-                Serial.println("\n[CloudOTA] ==========================================");
-                Serial.println("[CloudOTA] Prijatý príkaz STOP kalibrácie z Adafruit IO!");
-                Serial.println("[CloudOTA] ==========================================");
-                setCalibMode(false);
-                setAdafruitCommandStatus("IDLE");
+                if (!_calibMode) {
+                    Serial.println("\n[CloudOTA] ==========================================");
+                    Serial.println("[CloudOTA] Prijatý príkaz CALIB z Adafruit IO!");
+                    Serial.println("[CloudOTA] ==========================================");
+                    setCalibMode(true);
+                }
+            } else if (val.equalsIgnoreCase("STOP") || val.equalsIgnoreCase("CALIB_STOP") || val.equalsIgnoreCase("CALIB_OFF") || val.equalsIgnoreCase("IDLE")) {
+                if (_calibMode) {
+                    Serial.println("\n[CloudOTA] ==========================================");
+                    Serial.println("[CloudOTA] Prijatý príkaz IDLE/STOP - vypínam kalibráciu!");
+                    Serial.println("[CloudOTA] ==========================================");
+                    setCalibMode(false);
+                }
             }
         }
         return false;
