@@ -47,6 +47,7 @@ public:
 
     // Výpis debug štatistík pre kalibráciu
     void printDebugStats() const;
+    String getFormattedStats() const;
     
     // Živý výpis aktuálneho napätia pre manuálnu kalibráciu
     void printLiveDebug();

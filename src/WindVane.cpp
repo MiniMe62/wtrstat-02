@@ -238,6 +238,26 @@ void WindVane::printDebugStats() const {
     }
 }
 
+String WindVane::getFormattedStats() const {
+    String out = "=== Statistika Pomerov ===\n";
+    uint8_t active = 0;
+    for (int i = 0; i < NUM_DIRECTIONS; i++) {
+        const DirectionStats& st = _stats[i];
+        if (st.count > 0) {
+            active++;
+            float avg = (float)(st.sumRatio / st.count);
+            char buf[64];
+            snprintf(buf, sizeof(buf), "%-4s: %.3f (%.3f-%.3f) n=%u\n",
+                     CALIBRATION_TABLE[i].name, avg, st.minRatio, st.maxRatio, st.count);
+            out += buf;
+        }
+    }
+    if (active == 0) {
+        out += "Zatial 0 vzoriek.\n";
+    }
+    return out;
+}
+
 void WindVane::printLiveDebug() {
     // Odmeriame priemerne hodnoty samostatne pre debug výpis
     uint32_t vaneSum = 0;

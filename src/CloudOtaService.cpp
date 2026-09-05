@@ -1,8 +1,13 @@
 #include "CloudOtaService.h"
 #include "Config.h"
+#include "WindVane.h"
 #include <WiFi.h>
 
 CloudOtaService::CloudOtaService() {
+}
+
+void CloudOtaService::begin(const WindVane* windVane) {
+    _windVane = windVane;
 }
 
 bool CloudOtaService::isNewerVersion(const String& newVer, const String& currVer) {
@@ -166,24 +171,37 @@ void CloudOtaService::setAdafruitCommandStatus(const String& status) {
     if (http.begin(client, url)) {
         http.addHeader("X-AIO-Key", Config::getAioKey());
         http.addHeader("Content-Type", "application/json");
-        StaticJsonDocument<128> doc;
+        DynamicJsonDocument doc(1280);
         doc["value"] = status;
         String payload;
         serializeJson(doc, payload);
         http.POST(payload);
         http.end();
-        Serial.printf("[CloudOTA] Adafruit IO feed 'meteo-cmd' nastavený na: '%s'\n", status.c_str());
+        Serial.printf("[CloudOTA] Adafruit IO feed 'meteo-cmd' aktualizovaný:\n%s\n", status.c_str());
+    }
+}
+
+void CloudOtaService::sendStatsToAdafruit() {
+    if (_windVane) {
+        String stats = _windVane->getFormattedStats();
+        setAdafruitCommandStatus(stats);
+    } else {
+        Serial.println("[CloudOTA] Nemám referenciu na WindVane pre odoslanie štatistiky.");
     }
 }
 
 void CloudOtaService::setCalibMode(bool active) {
+    bool wasActive = _calibMode;
     _calibMode = active;
     if (active) {
         _calibStartTime = millis();
-        Serial.println("\n[CalibMode] >>> STREŠNÝ KALIBRAČNÝ REŽIM ZAPNUTÝ na 15 minút (interval 5s) <<<");
+        Serial.println("\n[CalibMode] >>> STREŠNÝ KALIBRAČNÝ REŽIM ZAPNUTÝ na 15 minút (interval 6s) <<<");
     } else {
         _calibStartTime = 0;
         Serial.println("\n[CalibMode] >>> STREŠNÝ KALIBRAČNÝ REŽIM VYPNUTÝ (návrat k 1min/15min) <<<");
+        if (wasActive) {
+            sendStatsToAdafruit();
+        }
     }
 }
 
@@ -268,6 +286,11 @@ bool CloudOtaService::checkAdafruitCommand() {
                     Serial.println("[CloudOTA] ==========================================");
                     setCalibMode(false);
                 }
+            } else if (val.equalsIgnoreCase("STATS") || val.equalsIgnoreCase("STAT") || val.equalsIgnoreCase("STATISTIKA")) {
+                Serial.println("\n[CloudOTA] ==========================================");
+                Serial.println("[CloudOTA] Prijatý príkaz STATS z Adafruit IO! Odosielam tabuľku...");
+                Serial.println("[CloudOTA] ==========================================");
+                sendStatsToAdafruit();
             }
         }
         return false;

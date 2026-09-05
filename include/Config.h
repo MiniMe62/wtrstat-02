@@ -16,7 +16,7 @@
 // Vyberte aktívny profil pre kompiláciu:
 #define CURRENT_SITE SITE_TEST_VIDIEK
 
-#define WTRSTAT_FIRMWARE_VERSION "2.2.2"
+#define WTRSTAT_FIRMWARE_VERSION "2.2.3"
 
 namespace Config {
     // Verzia firmvéru a vzdialené aktualizácie

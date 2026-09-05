@@ -15,9 +15,13 @@ struct OtaCheckResult {
     String error;
 };
 
+class WindVane;
+
 class CloudOtaService {
 public:
     CloudOtaService();
+
+    void begin(const WindVane* windVane = nullptr);
 
     OtaCheckResult checkVersion();
     bool performUpdate(const String& url);
@@ -27,6 +31,7 @@ public:
     void setCalibMode(bool active);
     uint32_t getCalibRemainingSec() const;
     void updateCalibTimeout();
+    void sendStatsToAdafruit();
 
 private:
     bool parseVersionJson(const String& json, OtaCheckResult& result);
@@ -34,6 +39,7 @@ private:
     void resetAdafruitCommandFeed();
     void setAdafruitCommandStatus(const String& status);
 
+    const WindVane* _windVane = nullptr;
     bool _calibMode = false;
     unsigned long _calibStartTime = 0;
 };
