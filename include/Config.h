@@ -16,7 +16,7 @@
 // Vyberte aktívny profil pre kompiláciu:
 #define CURRENT_SITE SITE_TEST_VIDIEK
 
-#define WTRSTAT_FIRMWARE_VERSION "2.2.1"
+#define WTRSTAT_FIRMWARE_VERSION "2.2.2"
 
 namespace Config {
     // Verzia firmvéru a vzdialené aktualizácie
@@ -26,9 +26,9 @@ namespace Config {
     constexpr uint8_t AUTO_UPDATE_HOUR = 0;                            // Nočný čas dennej kontroly (00:10)
     constexpr uint8_t AUTO_UPDATE_MINUTE = 10;
 
-    // Strešný kalibračný režim pre Adafruit IO
-    constexpr uint32_t CALIB_UPLOAD_INTERVAL_MS = 5000;                // 5 sekúnd interval odosielania v kalibračnom režime
-    constexpr uint32_t CALIB_CMD_CHECK_INTERVAL_MS = 10000;            // 10 sekúnd kontrola príkazov z Adafruit IO
+    // Strešný kalibračný režim pre Adafruit IO (optimalizované pre limit 30 op/min)
+    constexpr uint32_t CALIB_UPLOAD_INTERVAL_MS = 6000;                // 6 sekúnd (10 zápisov/min x 2 feedy = 20 op/min)
+    constexpr uint32_t CALIB_CMD_CHECK_INTERVAL_MS = 15000;            // 15 sekúnd kontrola príkazov (4 op/min) -> Spolu 24/30 op/min
     constexpr uint32_t CALIB_TIMEOUT_SEC = 900;                        // 15 minút automatický návrat do normálneho režimu
 
     // Sériová komunikácia

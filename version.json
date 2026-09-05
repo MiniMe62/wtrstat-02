@@ -1,10 +1,10 @@
 {
   "TEST_VIDIEK": {
-    "version": "2.2.1",
+    "version": "2.2.2",
     "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_TEST_VIDIEK.bin"
   },
   "TEST": {
-    "version": "2.2.1",
+    "version": "2.2.2",
     "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_TEST_VIDIEK.bin"
   },
   "TEST_MESTO": {

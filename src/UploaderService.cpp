@@ -221,26 +221,27 @@ bool UploaderService::sendToAdafruitIO(const WeatherSnapshot& snap, const TimeMa
     };
 
     // Tieto kľúče musia presne zodpovedať názvom feedov v Adafruit IO skupine (meteo)
-    addFeed("tempin", snap.tempIn, 2);
-    addFeed("tempout", snap.tempOut, 2);
-    // V kalibračnom režime zobrazujeme dočasne vo feedoch rýchlosti surový pomer deliča (napr. 540 alebo 710)
     if (isCalib) {
-        addFeed("wind-speed-avg", snap.windSpeedMax * 1000.0f, 0); // Pomer x1000 ako celé číslo
+        // V kalibračnom režime posielame LEN 2 feedy! (2 operácie na odoslanie)
+        // Pri 6-sekundovom intervale to je 10x2 = 20 operácií/min, čo je bezpečne pod limitom 30 op/min!
+        addFeed("wind-direction", snap.windDirDeg, 0); // Stupne na celé číslo
         addFeed("wind-speed-max", snap.windSpeedMax * 1000.0f, 0); // Pomer x1000 ako celé číslo
     } else {
+        addFeed("tempin", snap.tempIn, 2);
+        addFeed("tempout", snap.tempOut, 2);
         addFeed("wind-speed-avg", snap.windSpeedAvg, 1); // Rýchlosť na 0.1
         addFeed("wind-speed-max", snap.windSpeedMax, 1);
+        addFeed("wind-direction", snap.windDirDeg, 0); // Stupne na celé číslo
+        addFeed("light", snap.light, 0);
+        addFeed("rain", snap.rain, 2);
+        addFeed("rain-today", snap.rainDaily, 2);
     }
-    addFeed("wind-direction", snap.windDirDeg, 0); // Stupne na celé číslo
-    addFeed("light", snap.light, 0);
-    addFeed("rain", snap.rain, 2);
-    addFeed("rain-today", snap.rainDaily, 2);
 
     String jsonString;
     serializeJson(doc, jsonString);
 
     if (isCalib) {
-        Serial.println("[AdafruitIO] Odosielam KALIBRAČNÝ balíček (5s interval)...");
+        Serial.println("[AdafruitIO] Odosielam KALIBRAČNÝ balíček (2 feedy, 6s interval)...");
     } else {
         Serial.println("[AdafruitIO] Odosielam cez HTTPS s presným časom (:00)...");
     }
