@@ -16,10 +16,10 @@ public:
     UploaderService();
 
     bool send15MinSnapshot(const WeatherSnapshot& snap, const TimeManager& timeMgr);
-    bool send1MinSnapshot(const WeatherSnapshot& snap, const TimeManager& timeMgr);
+    bool send1MinSnapshot(const WeatherSnapshot& snap, const TimeManager& timeMgr, bool isCalib = false);
 
 private:
     bool sendToGoogleSheets(const WeatherSnapshot& snap, const TimeManager& timeMgr);
     bool sendToThingSpeak(const WeatherSnapshot& snap, const TimeManager& timeMgr);
-    bool sendToAdafruitIO(const WeatherSnapshot& snap, const TimeManager& timeMgr);
+    bool sendToAdafruitIO(const WeatherSnapshot& snap, const TimeManager& timeMgr, bool isCalib = false);
 };

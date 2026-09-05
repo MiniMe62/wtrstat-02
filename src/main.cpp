@@ -83,8 +83,47 @@ void cbCheckUploadMark15Min() {
     }
 }
 
-// 2b. Kontrola 1-minútového intervalu pre Adafruit IO
+// 2b. Kontrola 1-minútového intervalu pre Adafruit IO (alebo 5s v kalibračnom režime)
+static unsigned long s_lastCalibUploadMs = 0;
+static unsigned long s_lastCmdCheckMs = 0;
+
 void cbCheckUploadMark1Min() {
+    // 1. Pravidelná kontrola príkazov z Adafruit IO každých 10 sekúnd a update timeoutu
+    cloudOta.updateCalibTimeout();
+    unsigned long nowMs = millis();
+    if (nowMs - s_lastCmdCheckMs >= Config::CALIB_CMD_CHECK_INTERVAL_MS) {
+        s_lastCmdCheckMs = nowMs;
+        cloudOta.checkAdafruitCommand();
+    }
+
+    // 2. Ak beží STREŠNÝ KALIBRAČNÝ REŽIM, odosielame každých 5 sekúnd s okamžitými hodnotami
+    if (cloudOta.isCalibMode()) {
+        if (nowMs - s_lastCalibUploadMs >= Config::CALIB_UPLOAD_INTERVAL_MS) {
+            s_lastCalibUploadMs = nowMs;
+
+            WeatherSnapshot snap;
+            snap.timestamp = timeMgr.getUtcTime();
+            snap.isValid = true;
+            snap.tempIn = tempMgr.isReadValid() ? tempMgr.getTempIn() : 0.0f;
+            snap.tempOut = tempMgr.isReadValid() ? tempMgr.getTempOut() : 0.0f;
+            snap.windSpeedAvg = windVane.getLastRatio(); // Do rýchlosti zapíšeme pomer pre istotu na obe karty
+            snap.windSpeedMax = windVane.getLastRatio(); // Uložíme surový pomer
+            snap.windDirDeg = windVane.getInstantAngle();
+            snap.windDirName = windVane.getInstantDirName();
+            snap.light = lightSensor.getBrightnessPercent();
+            snap.rain = rainGauge.getRain1Min();
+            snap.rainDaily = rainGauge.getRainToday();
+
+            Serial.printf("[CalibMode] Odosielam na Adafruit IO: Smer %s (%.1f°), Pomer: %.3f (x1000: %d) [Zostáva: %u s]\n",
+                          snap.windDirName.c_str(), snap.windDirDeg, snap.windSpeedMax, 
+                          (int)round(snap.windSpeedMax * 1000.0f), cloudOta.getCalibRemainingSec());
+
+            uploader.send1MinSnapshot(snap, timeMgr, true);
+        }
+        return; // V kalibračnom režime preskočíme štandardný 1-minútový snapshot
+    }
+
+    // 3. ŠTANDARDNÝ REŽIM (Normal Mode - 1 minúta)
     time_t currentMark = timeMgr.getMarkTime(Config::MEASURE_INTERVAL_FAST_MIN);
 
     if (currentMark != s_lastUploadedMark1Min && s_lastUploadedMark1Min != 0) {
@@ -97,15 +136,12 @@ void cbCheckUploadMark1Min() {
                       timeMgr.getFormattedCustom().c_str(), Config::MEASURE_INTERVAL_FAST_MIN);
 
         WeatherSnapshot snap = aggregator1Min.finalizeSnapshot(currentMark, windVane, &rainGauge, true);
-            if (snap.isValid) {
-                uploader.send1MinSnapshot(snap, timeMgr);
-            }
-            
+        if (snap.isValid) {
+            uploader.send1MinSnapshot(snap, timeMgr, false);
+        }
+        
         aggregator1Min.reset();
         rainGauge.resetInterval1Min();
-
-        // 2c. Kontrola On-Demand príkazov z Adafruit IO (napr. tlačidlo UPDATE)
-        cloudOta.checkAdafruitCommand();
 
         // 2d. Denná nočná kontrola v presnom čase (00:10)
         static int s_lastDailyOtaDay = -1;

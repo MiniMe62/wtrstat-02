@@ -98,6 +98,7 @@ WindVane::WindVane(uint8_t pin, uint8_t vccPin)
       _vccPin(vccPin),
       _instantAngle(0.0f),
       _instantDirName("N/A"),
+      _lastRatio(0.0f),
       _sinSum(0.0),
       _cosSum(0.0),
       _sampleCount(0) {
@@ -150,6 +151,7 @@ int WindVane::findClosestDirectionIndex(float measuredRatio) const {
 
 void WindVane::update() {
     float ratio = readRatioAveraged(16);
+    _lastRatio = ratio;
     int idx = findClosestDirectionIndex(ratio);
 
     if (idx >= 0) {

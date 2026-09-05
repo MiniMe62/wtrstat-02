@@ -3859,6 +3859,22 @@ void WebServerManager::begin(const TempSensorManager* tempMgr, const Anemometer*
 
     _server.on("/", [this]() { handleRoot(); });
     _server.on("/api/live", [this]() { handleApiLive(); });
+    _server.on("/api/calib/start", HTTP_POST, [this]() {
+        if (_cloudOta) _cloudOta->setCalibMode(true);
+        _server.send(200, "application/json", "{\"calibMode\":true}");
+    });
+    _server.on("/api/calib/stop", HTTP_POST, [this]() {
+        if (_cloudOta) _cloudOta->setCalibMode(false);
+        _server.send(200, "application/json", "{\"calibMode\":false}");
+    });
+    _server.on("/api/calib/toggle", HTTP_POST, [this]() {
+        bool newState = false;
+        if (_cloudOta) {
+            newState = !_cloudOta->isCalibMode();
+            _cloudOta->setCalibMode(newState);
+        }
+        _server.send(200, "application/json", String("{\"calibMode\":") + (newState ? "true" : "false") + "}");
+    });
     _server.on("/api/test/rain-tip", [this]() { handleApiTestRainTip(); });
     _server.on("/update", HTTP_GET, [this]() { handleUpdatePage(); });
     _server.on("/update", HTTP_POST, [this]() { handleUpdateDone(); }, [this]() { handleUpdateUpload(); });
@@ -3986,7 +4002,7 @@ void WebServerManager::handleApiLive() {
         return;
     }
 
-    StaticJsonDocument<768> doc;
+    StaticJsonDocument<1024> doc;
     doc["stationId"] = Config::LOC_ID;
     doc["version"] = Config::FIRMWARE_VERSION;
     doc["buildDate"] = __DATE__;
@@ -3997,10 +4013,16 @@ void WebServerManager::handleApiLive() {
     doc["windSpeed"] = _anemometer->getWindSpeed();
     doc["windDirDeg"] = _windVane->getInstantAngle();
     doc["windDirName"] = _windVane->getInstantDirName();
+    doc["vaneRatio"] = _windVane->getLastRatio();
     doc["wifiSSID"] = _wifiService->getConnectedSSID();
     doc["rssi"] = _wifiService->getRSSI();
     doc["ip"] = _wifiService->getIPAddress();
     doc["uptimeSec"] = millis() / 1000;
+
+    if (_cloudOta) {
+        doc["calibMode"] = _cloudOta->isCalibMode();
+        doc["calibRemainingSec"] = _cloudOta->getCalibRemainingSec();
+    }
 
     if (_lightSensor) {
         doc["lightPercent"] = _lightSensor->getBrightnessPercent();

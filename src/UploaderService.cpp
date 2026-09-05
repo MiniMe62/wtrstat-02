@@ -57,13 +57,13 @@ bool UploaderService::send15MinSnapshot(const WeatherSnapshot& snap, const TimeM
     return (gsOk && tsOk);
 }
 
-bool UploaderService::send1MinSnapshot(const WeatherSnapshot& snap, const TimeManager& timeMgr) {
+bool UploaderService::send1MinSnapshot(const WeatherSnapshot& snap, const TimeManager& timeMgr, bool isCalib) {
     if (WiFi.status() != WL_CONNECTED) return false;
     
     if (Config::DRY_RUN_UPLOAD) return true;
 
     if (Config::ENABLE_ADAFRUIT_IO_UPLOAD) {
-        return sendToAdafruitIO(snap, timeMgr);
+        return sendToAdafruitIO(snap, timeMgr, isCalib);
     }
     return true;
 }
@@ -185,7 +185,7 @@ bool UploaderService::sendToThingSpeak(const WeatherSnapshot& snap, const TimeMa
     return false;
 }
 
-bool UploaderService::sendToAdafruitIO(const WeatherSnapshot& snap, const TimeManager& timeMgr) {
+bool UploaderService::sendToAdafruitIO(const WeatherSnapshot& snap, const TimeManager& timeMgr, bool isCalib) {
     if (WiFi.status() != WL_CONNECTED) return false;
 
     WiFiClientSecure client;
@@ -223,9 +223,14 @@ bool UploaderService::sendToAdafruitIO(const WeatherSnapshot& snap, const TimeMa
     // Tieto kľúče musia presne zodpovedať názvom feedov v Adafruit IO skupine (meteo)
     addFeed("tempin", snap.tempIn, 2);
     addFeed("tempout", snap.tempOut, 2);
-    // humidity a pressure vynechané pre dodržanie limitu max 10 feedov na bezplatnom účte Adafruit IO
-    addFeed("wind-speed-avg", snap.windSpeedAvg, 1); // Rýchlosť na 0.1
-    addFeed("wind-speed-max", snap.windSpeedMax, 1);
+    // V kalibračnom režime zobrazujeme dočasne vo feedoch rýchlosti surový pomer deliča (napr. 540 alebo 710)
+    if (isCalib) {
+        addFeed("wind-speed-avg", snap.windSpeedMax * 1000.0f, 0); // Pomer x1000 ako celé číslo
+        addFeed("wind-speed-max", snap.windSpeedMax * 1000.0f, 0); // Pomer x1000 ako celé číslo
+    } else {
+        addFeed("wind-speed-avg", snap.windSpeedAvg, 1); // Rýchlosť na 0.1
+        addFeed("wind-speed-max", snap.windSpeedMax, 1);
+    }
     addFeed("wind-direction", snap.windDirDeg, 0); // Stupne na celé číslo
     addFeed("light", snap.light, 0);
     addFeed("rain", snap.rain, 2);
@@ -234,7 +239,11 @@ bool UploaderService::sendToAdafruitIO(const WeatherSnapshot& snap, const TimeMa
     String jsonString;
     serializeJson(doc, jsonString);
 
-    Serial.println("[AdafruitIO] Odosielam cez HTTPS s presným časom (:00)...");
+    if (isCalib) {
+        Serial.println("[AdafruitIO] Odosielam KALIBRAČNÝ balíček (5s interval)...");
+    } else {
+        Serial.println("[AdafruitIO] Odosielam cez HTTPS s presným časom (:00)...");
+    }
     int httpCode = http.POST(jsonString);
 
     bool success = false;

@@ -37,6 +37,7 @@ public:
 
     float getInstantAngle() const { return _instantAngle; }
     const char* getInstantDirName() const { return _instantDirName; }
+    float getLastRatio() const { return _lastRatio; }
 
     // Goniometrický priemer za akumulačnú periódu (napr. 15min)
     float getAveragedAngle() const;
@@ -55,6 +56,7 @@ private:
     uint8_t _vccPin;
     float _instantAngle;
     const char* _instantDirName;
+    float _lastRatio;
 
     // Goniometrická akumulácia (vektorový priemer)
     double _sinSum;

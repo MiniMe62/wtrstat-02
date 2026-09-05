@@ -110,6 +110,10 @@ bool CloudOtaService::performUpdate(const String& url) {
 }
 
 void CloudOtaService::resetAdafruitCommandFeed() {
+    setAdafruitCommandStatus("IDLE");
+}
+
+void CloudOtaService::setAdafruitCommandStatus(const String& status) {
     if (WiFi.status() != WL_CONNECTED) return;
 
     WiFiClientSecure client;
@@ -120,9 +124,42 @@ void CloudOtaService::resetAdafruitCommandFeed() {
     if (http.begin(client, url)) {
         http.addHeader("X-AIO-Key", Config::getAioKey());
         http.addHeader("Content-Type", "application/json");
-        http.POST("{\"value\":\"IDLE\"}");
+        StaticJsonDocument<128> doc;
+        doc["value"] = status;
+        String payload;
+        serializeJson(doc, payload);
+        http.POST(payload);
         http.end();
-        Serial.println("[CloudOTA] Adafruit IO feed 'meteo-cmd' bol resetovaný na stav 'IDLE'.");
+        Serial.printf("[CloudOTA] Adafruit IO feed 'meteo-cmd' nastavený na: '%s'\n", status.c_str());
+    }
+}
+
+void CloudOtaService::setCalibMode(bool active) {
+    _calibMode = active;
+    if (active) {
+        _calibStartTime = millis();
+        Serial.println("\n[CalibMode] >>> STREŠNÝ KALIBRAČNÝ REŽIM ZAPNUTÝ na 15 minút (interval 5s) <<<");
+    } else {
+        _calibStartTime = 0;
+        Serial.println("\n[CalibMode] >>> STREŠNÝ KALIBRAČNÝ REŽIM VYPNUTÝ (návrat k 1min/15min) <<<");
+    }
+}
+
+uint32_t CloudOtaService::getCalibRemainingSec() const {
+    if (!_calibMode) return 0;
+    unsigned long elapsedMs = millis() - _calibStartTime;
+    unsigned long timeoutMs = Config::CALIB_TIMEOUT_SEC * 1000UL;
+    if (elapsedMs >= timeoutMs) return 0;
+    return (timeoutMs - elapsedMs) / 1000UL;
+}
+
+void CloudOtaService::updateCalibTimeout() {
+    if (_calibMode) {
+        if (getCalibRemainingSec() == 0) {
+            Serial.println("[CalibMode] Timeout 15 minút vypršal. Automatické ukončenie kalibrácie.");
+            setCalibMode(false);
+            setAdafruitCommandStatus("IDLE");
+        }
     }
 }
 
@@ -175,6 +212,18 @@ bool CloudOtaService::checkAdafruitCommand() {
                     Serial.printf("[CloudOTA] Zariadenie už má najnovšiu verziu v%s. Inštalácia vynechaná.\n",
                                   res.currentVersion.c_str());
                 }
+            } else if (val.equalsIgnoreCase("CALIB") || val.equalsIgnoreCase("CALIB_START") || val.equalsIgnoreCase("CALIBRATION")) {
+                Serial.println("\n[CloudOTA] ==========================================");
+                Serial.println("[CloudOTA] Prijatý príkaz CALIB z Adafruit IO!");
+                Serial.println("[CloudOTA] ==========================================");
+                setCalibMode(true);
+                setAdafruitCommandStatus("CALIB_ON");
+            } else if (val.equalsIgnoreCase("STOP") || val.equalsIgnoreCase("CALIB_STOP") || val.equalsIgnoreCase("CALIB_OFF")) {
+                Serial.println("\n[CloudOTA] ==========================================");
+                Serial.println("[CloudOTA] Prijatý príkaz STOP kalibrácie z Adafruit IO!");
+                Serial.println("[CloudOTA] ==========================================");
+                setCalibMode(false);
+                setAdafruitCommandStatus("IDLE");
             }
         }
         return false;
