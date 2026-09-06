@@ -44,4 +44,5 @@ private:
     LightSensor* _lightSensor = nullptr;
     bool _calibMode = false;
     unsigned long _calibStartTime = 0;
+    bool _justUpdated = false;
 };

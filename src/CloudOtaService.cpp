@@ -3,6 +3,7 @@
 #include "WindVane.h"
 #include "LightSensor.h"
 #include <WiFi.h>
+#include <Preferences.h>
 
 CloudOtaService::CloudOtaService() {
 }
@@ -10,6 +11,19 @@ CloudOtaService::CloudOtaService() {
 void CloudOtaService::begin(const WindVane* windVane, LightSensor* lightSensor) {
     _windVane = windVane;
     _lightSensor = lightSensor;
+
+    // Detekcia prvého štartu po aktualizácii firmvéru
+    Preferences prefs;
+    if (prefs.begin("wtrstat", false)) {
+        String prevVer = prefs.getString("fw_ver_ota", "");
+        if (prevVer != Config::FIRMWARE_VERSION) {
+            prefs.putString("fw_ver_ota", Config::FIRMWARE_VERSION);
+            _justUpdated = true;
+            Serial.printf("[CloudOTA] Detegovaný prvý štart novej verzie v%s (predchádzajúca: '%s')\n",
+                          Config::FIRMWARE_VERSION, prevVer.c_str());
+        }
+        prefs.end();
+    }
 }
 
 bool CloudOtaService::isNewerVersion(const String& newVer, const String& currVer) {
@@ -152,6 +166,7 @@ bool CloudOtaService::performUpdate(const String& url) {
     Serial.println("[CloudOTA] ESP32 sa reštartuje do nového firmvéru...");
     Serial.println("[CloudOTA] ==========================================\n");
 
+    setAdafruitCommandStatus("OTA WRITTEN -> REBOOT");
     http.end();
     delay(1000);
     ESP.restart();
@@ -228,6 +243,15 @@ void CloudOtaService::updateCalibTimeout() {
 bool CloudOtaService::checkAdafruitCommand() {
     if (!Config::ENABLE_ADAFRUIT_IO_UPLOAD || WiFi.status() != WL_CONNECTED) {
         return false;
+    }
+
+    // Automatické odoslanie potvrdenia do Adafruit IO pri prvom štarte po úspešnom OTA
+    if (_justUpdated) {
+        _justUpdated = false;
+        String bootMsg = String("BOOT OK: v") + Config::FIRMWARE_VERSION;
+        setAdafruitCommandStatus(bootMsg);
+        Serial.printf("[CloudOTA] Odoslané potvrdenie '%s' do Adafruit IO feedu '%s'\n",
+                      bootMsg.c_str(), Config::AIO_CMD_FEED);
     }
 
     WiFiClientSecure client;
@@ -309,6 +333,17 @@ bool CloudOtaService::checkAdafruitCommand() {
                     _lightSensor->setDynamicRange(false);
                     setAdafruitCommandStatus("DR: OFF");
                 }
+            } else if (val.equalsIgnoreCase("VER") || val.equalsIgnoreCase("INFO") || val.equalsIgnoreCase("VERSION")) {
+                Serial.println("\n[CloudOTA] ==========================================");
+                Serial.println("[CloudOTA] Prijatý príkaz VER z Adafruit IO! Odosielam info o verzii...");
+                Serial.println("[CloudOTA] ==========================================");
+                uint32_t uptimeSec = millis() / 1000;
+                uint32_t hrs = uptimeSec / 3600;
+                uint32_t mins = (uptimeSec % 3600) / 60;
+                char buf[80];
+                snprintf(buf, sizeof(buf), "v%s (%s) | Up:%uh%02um | RSSI:%ddBm",
+                         Config::FIRMWARE_VERSION, Config::LOC_ID, hrs, mins, WiFi.RSSI());
+                setAdafruitCommandStatus(String(buf));
             }
         }
         return false;

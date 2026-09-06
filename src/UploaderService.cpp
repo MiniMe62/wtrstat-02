@@ -152,6 +152,7 @@ bool UploaderService::sendToThingSpeak(const WeatherSnapshot& snap, const TimeMa
     statusDoc["light"] = snap.light;
     statusDoc["rainToday"] = snap.rainDaily;
     statusDoc["rainRate"] = snap.rainRate;
+    statusDoc["v"] = Config::FIRMWARE_VERSION;
 
     String statusJson;
     serializeJson(statusDoc, statusJson);

@@ -640,4 +640,14 @@ Riešenie nevyžaduje žiadnu novú súčiastku ani ťahanie káblov na strechu.
 | **Jasno / Dopoludnie (10:00)** | $50\,000 - 70\,000\text{ lx}$ | $1\,500 - 2\,000\,\mu\text{A}$ | $2\,500 - 2\,800\text{ mV}$ | **$2\,100 - 2\,400\text{ mV}$ ($1.67\text{k}$)** | **$75 - 85\,\%$** | **Jasno / Priame slnko** |
 | **Poludnie (12:45 CEST)** | $80\,000 - 100\,000+\text{ lx}$ | $2\,400 - 3\,000\,\mu\text{A}$ | $> 2\,800\text{ mV}$ *(clipping)* | **$2\,500 - 2\,750\text{ mV}$ ($1.67\text{k}$)** | **$90 - 98\,\%$** | **Jasno / Priame slnko** |
 
+---
+
+### 6. Overenie verzie a potvrdenie úspešného OTA (v2.2.5):
+* **Automatické potvrdenie po prvom boote:** Po úspešnom stiahnutí a reštarte do nového firmvéru ESP32 automaticky zapíše do Adafruit IO feedu `meteo-cmd` správu:
+  `BOOT OK: v2.2.5`
+  Tým používateľ v histórii feedu vidí čierne na bielom, že nová verzia nabehla a funguje.
+* **On-Demand dopyt na verziu (`VER` / `INFO`):** Kedykoľvek z Adafruit IO odošlete príkaz **`VER`**, ESP32 do 15 sekúnd odpovie správou s aktuálnou verziou, profilom, dobou behu (uptime) a silou WiFi signálu:
+  `v2.2.5 (TEST_VIDIEK) | Up: 2h 15m | RSSI: -65dBm`
+* **Trvalé sledovanie v ThingSpeaku:** V každej 15-minútovej záverke (pole `status` JSON) je uložený kľúč `"v": "2.2.5"`, takže v databáze ThingSpeaku je spätne dohľadateľný presný okamih prechodu na nový firmvér.
+
 
