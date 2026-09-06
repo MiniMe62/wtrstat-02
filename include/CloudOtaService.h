@@ -16,12 +16,13 @@ struct OtaCheckResult {
 };
 
 class WindVane;
+class LightSensor;
 
 class CloudOtaService {
 public:
     CloudOtaService();
 
-    void begin(const WindVane* windVane = nullptr);
+    void begin(const WindVane* windVane = nullptr, LightSensor* lightSensor = nullptr);
 
     OtaCheckResult checkVersion();
     bool performUpdate(const String& url);
@@ -40,6 +41,7 @@ private:
     void setAdafruitCommandStatus(const String& status);
 
     const WindVane* _windVane = nullptr;
+    LightSensor* _lightSensor = nullptr;
     bool _calibMode = false;
     unsigned long _calibStartTime = 0;
 };

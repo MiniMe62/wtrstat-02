@@ -620,8 +620,12 @@ Riešenie nevyžaduje žiadnu novú súčiastku ani ťahanie káblov na strechu.
   * Prechod z LOW na HIGH: čisté napätie $< 120\text{ mV}$ na $1.67\text{ k}\Omega$ ($I < 72\,\mu\text{A}$, jas $< 4.3\,\%$).
   * Prechod z HIGH na LOW: čisté napätie $> 1500\text{ mV}$ na $10\text{ k}\Omega$ ($I > 150\,\mu\text{A}$, jas $> 9.0\,\%$).
   * Pomer $72\,\mu\text{A}$ vs. $150\,\mu\text{A}$ zabezpečuje dokonalú hysteréziu proti cvakaniu a šumu vetra v korunách stromov.
-* **Virtuálne milivolty:** Výpočet fotoprúdu $I = U_{\text{clean}} / R_{\text{active}}$ je nezávislý od zvoleného rozsahu. Z fotoprúdu sa spätne počíta virtuálne napätie pre pôvodný rozsah: $U_{\text{virtual}} = I \times 2000\,\Omega$. Výsledkom je, že hodnoty v percentách, prahy stavu oblohy aj grafy na webe/Adafruit IO majú dokonale plynulý priebeh bez skokov.
-* **Aktivácia:** V `Config.h` je prepínač `LIGHT_DYNAMIC_RANGE_ENABLE = false`. Do doby fyzického prepojenia odporu stanica pokračuje v bezpečnom statickom režime.
+* **Aktivácia bez nutnosti rekompilácie:**
+  * Východzí stav po inštalácii je bezpečný statický režim (`LIGHT_DYNAMIC_RANGE_ENABLE = false`).
+  * Po fyzickom zapojení na vidieku **NIE JE potrebné znova kompilovať ani robiť OTA update**!
+  * **Diaľkové zapnutie cez Adafruit IO:** Do feedu `meteo-cmd` stačí poslať príkaz **`DR_ON`** (pre vypnutie **`DR_OFF`**). ESP32 okamžite zmení režim a odpovie statusom `DR: ON`.
+  * **Lokálne zapnutie cez Web:** K dispozícii je endpoint `http://<IP>/api/light/dr?enable=1` (alebo `0`).
+  * **Trvalé uloženie (NVS / Preferences):** Zvolený stav sa automaticky zapíše do flash pamäte ESP32, takže prežije aj reštart alebo výpadok prúdu.
 
 ### 5. Kalibračná tabuľka osvetlenia:
 

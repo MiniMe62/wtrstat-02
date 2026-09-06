@@ -1,4 +1,5 @@
 #include "LightSensor.h"
+#include <Preferences.h>
 
 LightSensor::LightSensor(uint8_t pin, float loadResistorOhms, int8_t rangePin, float loadHighOhms, float loadLowOhms, bool dynamicRangeEnabled)
     : _pin(pin),
@@ -20,6 +21,14 @@ LightSensor::LightSensor(uint8_t pin, float loadResistorOhms, int8_t rangePin, f
 
 void LightSensor::begin() {
     analogReadResolution(12);
+
+    // Načítanie trvalého nastavenia Dynamic Range z NVS pamäte ESP32 (ak existuje)
+    Preferences prefs;
+    if (prefs.begin("wtrstat", true)) { // Read-only
+        _dynamicRangeEnabled = prefs.getBool("dr_light", _dynamicRangeEnabled);
+        prefs.end();
+    }
+
     if (_dynamicRangeEnabled && _rangePin >= 0) {
         // Inicializujeme v LOW citlivosti (spodok odporu 2k pripojený na GND cez OUTPUT LOW)
         pinMode(_rangePin, OUTPUT);
@@ -35,18 +44,28 @@ void LightSensor::begin() {
 
 void LightSensor::setDynamicRange(bool enabled) {
     _dynamicRangeEnabled = enabled;
+
+    // Trvalé uloženie do NVS flash pamäte ESP32
+    Preferences prefs;
+    if (prefs.begin("wtrstat", false)) { // Read-Write
+        prefs.putBool("dr_light", _dynamicRangeEnabled);
+        prefs.end();
+        Serial.printf("[LightSensor] Dynamic Ranging trvale ulozeny do NVS: %s\n",
+                      _dynamicRangeEnabled ? "ZAPNUTY" : "VYPNUTY");
+    }
+
     if (_rangePin >= 0) {
         if (_dynamicRangeEnabled) {
             pinMode(_rangePin, OUTPUT);
             digitalWrite(_rangePin, LOW);
             _isHighSensitivity = false;
-            Serial.printf("[LightSensor] Dynamic Ranging zapnuty (Riadiaci pin: %d)\n", _rangePin);
+            Serial.printf("[LightSensor] Dynamic Ranging aktivovany (Riadiaci pin: %d)\n", _rangePin);
         } else {
             // Bezpečnostný režim: stiahnuť na GND pre štandardný paralelný odpor
             pinMode(_rangePin, OUTPUT);
             digitalWrite(_rangePin, LOW);
             _isHighSensitivity = false;
-            Serial.println("[LightSensor] Dynamic Ranging vypnuty (zostava staticky na LOW rozsahu)");
+            Serial.println("[LightSensor] Dynamic Ranging deaktivovany (bezi staticky)");
         }
     }
 }

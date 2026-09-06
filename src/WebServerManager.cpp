@@ -3876,6 +3876,22 @@ void WebServerManager::begin(const TempSensorManager* tempMgr, const Anemometer*
         _server.send(200, "application/json", String("{\"calibMode\":") + (newState ? "true" : "false") + "}");
     });
     _server.on("/api/test/rain-tip", [this]() { handleApiTestRainTip(); });
+    _server.on("/api/light/dr", HTTP_ANY, [this]() {
+        if (!_lightSensor) {
+            _server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"LightSensor nie je inicializovany\"}");
+            return;
+        }
+        if (_server.hasArg("enable")) {
+            bool enable = (_server.arg("enable") == "1" || _server.arg("enable") == "true");
+            const_cast<LightSensor*>(_lightSensor)->setDynamicRange(enable);
+            String resp = String("{\"status\":\"ok\",\"dynamicRange\":") + (enable ? "true" : "false") + "}";
+            _server.send(200, "application/json", resp);
+        } else {
+            String resp = String("{\"dynamicRange\":") + (_lightSensor->isDynamicRangeEnabled() ? "true" : "false") + 
+                          ",\"range\":\"" + (_lightSensor->isHighSensitivity() ? "HIGH" : "LOW") + "\"}";
+            _server.send(200, "application/json", resp);
+        }
+    });
     _server.on("/update", HTTP_GET, [this]() { handleUpdatePage(); });
     _server.on("/update", HTTP_POST, [this]() { handleUpdateDone(); }, [this]() { handleUpdateUpload(); });
     _server.on("/api/ota/check", HTTP_GET, [this]() { handleApiOtaCheck(); });

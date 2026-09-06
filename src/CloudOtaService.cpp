@@ -1,13 +1,15 @@
 #include "CloudOtaService.h"
 #include "Config.h"
 #include "WindVane.h"
+#include "LightSensor.h"
 #include <WiFi.h>
 
 CloudOtaService::CloudOtaService() {
 }
 
-void CloudOtaService::begin(const WindVane* windVane) {
+void CloudOtaService::begin(const WindVane* windVane, LightSensor* lightSensor) {
     _windVane = windVane;
+    _lightSensor = lightSensor;
 }
 
 bool CloudOtaService::isNewerVersion(const String& newVer, const String& currVer) {
@@ -291,6 +293,22 @@ bool CloudOtaService::checkAdafruitCommand() {
                 Serial.println("[CloudOTA] Prijatý príkaz STATS z Adafruit IO! Odosielam tabuľku...");
                 Serial.println("[CloudOTA] ==========================================");
                 sendStatsToAdafruit();
+            } else if (val.equalsIgnoreCase("DR_ON") || val.equalsIgnoreCase("LIGHT_DR_ON")) {
+                Serial.println("\n[CloudOTA] ==========================================");
+                Serial.println("[CloudOTA] Prijatý príkaz DR_ON z Adafruit IO! Aktivujem Dynamic Ranging...");
+                Serial.println("[CloudOTA] ==========================================");
+                if (_lightSensor) {
+                    _lightSensor->setDynamicRange(true);
+                    setAdafruitCommandStatus("DR: ON");
+                }
+            } else if (val.equalsIgnoreCase("DR_OFF") || val.equalsIgnoreCase("LIGHT_DR_OFF")) {
+                Serial.println("\n[CloudOTA] ==========================================");
+                Serial.println("[CloudOTA] Prijatý príkaz DR_OFF z Adafruit IO! Deaktivujem Dynamic Ranging...");
+                Serial.println("[CloudOTA] ==========================================");
+                if (_lightSensor) {
+                    _lightSensor->setDynamicRange(false);
+                    setAdafruitCommandStatus("DR: OFF");
+                }
             }
         }
         return false;

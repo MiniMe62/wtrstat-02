@@ -248,7 +248,7 @@ void setup() {
     if (wifiOk) {
         timeMgr.syncNTP();
     }
-    cloudOta.begin(&windVane);
+    cloudOta.begin(&windVane, &lightSensor);
     webServerMgr.begin(&tempMgr, &anemometer, &windVane, &wifiService, &timeMgr, &cloudOta, &lightSensor, &rainGauge);
 
     // Pridanie úloh do plánovača TaskScheduler
