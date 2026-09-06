@@ -1,13 +1,13 @@
 {
   "TEST_VIDIEK": {
-    "version": "2.2.6",
+    "version": "2.2.7",
     "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_TEST_VIDIEK.bin",
-    "notes": "v2.2.6: Asynchronous decoupled OTA + chunked stream download + DR (GPIO 25) + rain 25mV fix"
+    "notes": "v2.2.7: Calendar-based slots for heliograph with midnight dividers and future placeholder"
   },
   "TEST": {
-    "version": "2.2.6",
+    "version": "2.2.7",
     "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_TEST_VIDIEK.bin",
-    "notes": "v2.2.6: Asynchronous decoupled OTA + chunked stream download + DR (GPIO 25) + rain 25mV fix"
+    "notes": "v2.2.7: Calendar-based slots for heliograph with midnight dividers and future placeholder"
   },
   "TEST_MESTO": {
     "version": "2.0.2",
