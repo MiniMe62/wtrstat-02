@@ -888,7 +888,10 @@
             <!-- 3. Sunshine Timeline Bar (Campbell-Stokes Heliograf) -->
             <div class="sunshine-bar-wrapper" id="sunshineBarWrapper">
                 <div class="sunshine-bar-title">
-                    <span id="sunshineBarTitleText">⏱️ Heliografická Lišta Slnečného Svitu (Dnes: 00:00 – 24:00)</span>
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span id="sunshineBarTitleText">⏱️ Heliografická Lišta Slnečného Svitu (Dnes: 00:00 – 24:00)</span>
+                        <span id="sunshineBarDetail" style="display: none; font-size: 0.78rem; font-weight: 600; color: #38bdf8; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); padding: 2px 8px; border-radius: 6px; transition: all 0.2s ease;"></span>
+                    </div>
                     <span id="sunshineTimelineTotal" style="color: #fbbf24; font-weight: 700;">Dnes: --</span>
                 </div>
                 <div class="sunshine-bar" id="sunshineBar">
@@ -1115,7 +1118,7 @@
 
         <footer>
             <div style="margin-bottom: 4px;">wtrStat-02 • ESP32 Weather Station • Hosted on GitHub Pages</div>
-            <div style="font-size: 0.78rem; opacity: 0.85;">Firmware v2.2.8 • Calendar Heliograph & 24h Donut Share Edition</div>
+            <div style="font-size: 0.78rem; opacity: 0.85;">Firmware v2.2.9 • Heliograph Intervals & Mobile Badge Edition</div>
         </footer>
     </div>
 
@@ -1718,6 +1721,7 @@
 
             const ticksEl = document.getElementById('sunshineTicks');
             const titleEl = document.getElementById('sunshineBarTitleText');
+            const detailEl = document.getElementById('sunshineBarDetail');
             const totEl = document.getElementById('sunshineTimelineTotal');
             const statSun = document.getElementById('statLightSunshine');
 
@@ -1768,21 +1772,17 @@
                     bar.appendChild(divider);
                 }
 
-                // Každý deň má 96 slotov po 15 minút (00:00 až 23:45)
+                // 1. Krok: Predbežné vyhodnotenie všetkých 96 slotov dňa
+                const daySlots = [];
                 for (let s = 0; s < 96; s++) {
                     const slotStartTime = new Date(dayStart.getTime() + s * 15 * 60 * 1000);
+                    const slotEndTime = new Date(slotStartTime.getTime() + 15 * 60 * 1000);
                     const slotMidTime = new Date(slotStartTime.getTime() + 7.5 * 60 * 1000);
-                    const timeLabel = slotStartTime.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
-
-                    const seg = document.createElement('div');
-                    seg.className = 'sunshine-segment';
 
                     // Kontrola budúcnosti (iba pre dnešný deň po aktuálnom čase)
                     if (isToday && slotStartTime.getTime() > now.getTime()) {
-                        seg.classList.add('future');
+                        daySlots.push({ cond: 'future', val: null, startTime: slotStartTime, endTime: slotEndTime });
                         countFutureSlots++;
-                        seg.title = `${dateStr} ${timeLabel}: Zatiaľ nezaznamenané (budúcnosť)`;
-                        bar.appendChild(seg);
                         continue;
                     }
 
@@ -1811,41 +1811,110 @@
                     }
 
                     let cond = 'night';
-                    let labelText = 'Noc / Tma';
-
                     if (v === null || isNaN(v)) {
                         cond = 'nodata';
-                        labelText = 'Bez dát';
                         countNightSlots++;
                     } else if (v >= 60) {
                         cond = 'sunny';
-                        labelText = 'Priame slnko (Svit)';
                         totalSunSlots++;
                         if (isToday) todaySunSlots++;
                     } else if (v >= 35) {
                         cond = 'cloudy';
-                        labelText = 'Polooblačno';
                         countCloudySlots++;
                     } else if (v >= 15) {
                         cond = 'overcast';
-                        labelText = 'Zamračené';
                         countOvercastSlots++;
                     } else if (v >= 3) {
                         cond = 'overcast-dark';
-                        labelText = 'Husto zamračené';
                         countOvercastSlots++;
                     } else {
                         cond = 'night';
-                        labelText = 'Noc / Tma';
                         countNightSlots++;
                     }
 
-                    seg.classList.add(cond);
-                    const valDisplay = (v !== null && !isNaN(v)) ? `${v.toFixed(0)}%` : '--%';
-                    seg.title = `${dateStr} ${timeLabel}: ${valDisplay} (${labelText})`;
-                    bar.appendChild(seg);
+                    daySlots.push({ cond: cond, val: v, startTime: slotStartTime, endTime: slotEndTime });
                 }
+
+                // 2. Krok: Zlúčenie súvislých slotov s rovnakým typom počasia (Run-Length Encoding)
+                const intervals = [];
+                let currentInterval = null;
+
+                for (let s = 0; s < daySlots.length; s++) {
+                    const slot = daySlots[s];
+                    if (currentInterval && currentInterval.cond === slot.cond) {
+                        currentInterval.slotsCount++;
+                        currentInterval.endTime = slot.endTime;
+                        if (slot.val !== null && !isNaN(slot.val)) currentInterval.vals.push(slot.val);
+                    } else {
+                        if (currentInterval) intervals.push(currentInterval);
+                        currentInterval = {
+                            cond: slot.cond,
+                            slotsCount: 1,
+                            startTime: slot.startTime,
+                            endTime: slot.endTime,
+                            vals: (slot.val !== null && !isNaN(slot.val)) ? [slot.val] : []
+                        };
+                    }
+                }
+                if (currentInterval) intervals.push(currentInterval);
+
+                // 3. Krok: Vykreslenie zlúčených segmentov s proporčným flex a detailmi
+                intervals.forEach(inv => {
+                    const seg = document.createElement('div');
+                    seg.className = 'sunshine-segment ' + inv.cond;
+                    seg.style.flex = inv.slotsCount;
+
+                    const durMinutes = inv.slotsCount * 15;
+                    const durH = Math.floor(durMinutes / 60);
+                    const durM = durMinutes % 60;
+                    const durStr = durH > 0 ? (durM > 0 ? `${durH}h ${durM}m` : `${durH}h`) : `${durM}m`;
+
+                    const startStr = inv.startTime.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
+                    const endStr = inv.endTime.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
+
+                    let icon = '☀️';
+                    let labelText = 'Priame slnko (Svit)';
+                    if (inv.cond === 'cloudy') { icon = '⛅'; labelText = 'Polooblačno'; }
+                    else if (inv.cond === 'overcast') { icon = '☁️'; labelText = 'Zamračené'; }
+                    else if (inv.cond === 'overcast-dark') { icon = '🌧️'; labelText = 'Husto zamračené'; }
+                    else if (inv.cond === 'night') { icon = '🌙'; labelText = 'Noc / Tma'; }
+                    else if (inv.cond === 'future') { icon = '⏱️'; labelText = 'Bez dát / Budúcnosť'; }
+                    else if (inv.cond === 'nodata') { icon = '❓'; labelText = 'Bez záznamu'; }
+
+                    let valText = '';
+                    if (inv.vals.length > 0) {
+                        const avgVal = Math.round(inv.vals.reduce((a, b) => a + b, 0) / inv.vals.length);
+                        valText = ` • ${avgVal}%`;
+                    }
+
+                    const compactTooltip = `${dateStr} ${startStr} – ${endStr} • ${labelText} (${durStr}${valText})`;
+                    seg.title = compactTooltip;
+
+                    const detailText = `${icon} ${dateStr} ${startStr} – ${endStr} • ${labelText} (${durStr}${valText})`;
+                    const showDetail = () => {
+                        if (detailEl) {
+                            detailEl.innerText = detailText;
+                            detailEl.style.display = 'inline-block';
+                            if (window._sunDetailTimer) clearTimeout(window._sunDetailTimer);
+                            window._sunDetailTimer = setTimeout(() => {
+                                detailEl.style.display = 'none';
+                            }, 4500);
+                        }
+                    };
+
+                    seg.addEventListener('mouseenter', showDetail);
+                    seg.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        showDetail();
+                    });
+
+                    bar.appendChild(seg);
+                });
             });
+
+            bar.onmouseleave = () => {
+                if (detailEl && !window._sunDetailTimer) detailEl.style.display = 'none';
+            };
 
             // Aktualizácia koláčového grafu (5 kategórií vrátane Bez dát / Budúcnosť)
             const totalPeriodSlots = totalSunSlots + countCloudySlots + countOvercastSlots + countNightSlots + countFutureSlots;
