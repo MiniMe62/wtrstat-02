@@ -321,17 +321,27 @@ V `include/Config.h` je zavedený systém profilov cez `#define CURRENT_SITE`:
 
 Systém podporuje bleskový update na diaľku bez čakania na 24h periódu:
 
-### 1. Ako funguje On-Demand príkaz:
+### 1. Ako funguje On-Demand príkaz a asynchrónne OTA:
 1. V Adafruit IO dashboarde máte tlačidlo priradené k feedu **`meteo-cmd`**.
-2. Keď na mobile/PC prepnete tlačidlo na **`UPDATE`**:
-   - ESP32 pri najbližšom 1-minútovom spojení zachytí príkaz.
-   - **Reset:** ESP32 ihneď zapíše do feedu `meteo-cmd` hodnotu `IDLE` (ochrana pred zacyklením po reštarte).
-   - **Porovnanie verzie:** Stiahne `version.json`. Ak je verzia novšia, stiahne `.bin` a preflashuje sa. Ak je verzia rovnaká, operáciu bezpečne vynechá.
-   - **Rýchlosť:** Reakcia nastane maximálne do **60 sekúnd** od kliknutia.
+2. Keď na mobile/PC odošlete príkaz **`UPDATE`** (alebo vlastnú URL cez **`OTA_URL: <url>`**):
+   - **Okamžité prevzatie a uvoľnenie RAM:** ESP32 zachytí príkaz do 15 sekúnd, zapíše do feedu `OTA: Inic. za 3s...`, úplne ukončí a zahodí TLS spojenie s Adafruit IO.
+   - **Čisté prostredie (Heap Free > 180 kB):** O 3 sekundy neskôr sa v hlavnom `loop()` spustí izolovaná aktualizácia, kedy má procesor k dispozícii maximálne množstvo voľnej pamäte bez kolízií.
+   - **Blokové streamovanie (Chunked):** Dáta sa sťahujú v 2 až 4 kB blokoch s 30s stall ochranou a kŕmením watchdogu (odstránená závislosť na pomalom `Stream::timedRead()`).
+   - **Spätné hlásenie chýb:** Akékoľvek zlyhanie (sieť, HTTP kód, partícia, timeout) sa okamžite zapíše do `meteo-cmd` (napr. `OTA ERR: HTTP kód 404`).
+   - **Úspech a reštart:** Pri úspechu sa odošle `OTA OK -> REBOOT` a po štarte automatické hlásenie `BOOT OK: v2.2.5`.
 
-### 2. Ochrana kľúčov pred bezpečnostnými robotmi:
+### 2. Príkazy pre diaľkové riadenie (`meteo-cmd`):
+* **`VER` / `INFO`:** Vráti verziu, stanicu, voľnú RAM, silu signálu a uptime (`v2.2.5 (TEST_VIDIEK) | Heap:184KB | RSSI:-64dBm | Up:4h12m`).
+* **`UPDATE`:** Spustí OTA aktualizáciu na najnovšiu verziu podľa `version.json`.
+* **`OTA_URL: <url>`:** Spustí priame OTA z akejkoľvek zadanej HTTP alebo HTTPS linky.
+* **`STATS`:** Vráti kompletnú štatistickú tabuľku 16 smerov veternej ružice.
+* **`DR_ON` / `DR_OFF`:** Diaľkové prepnutie Dynamic Ranging svetelného senzora s trvalým zápisom do NVS flash pamäte.
+* **`CALIB` / `STOP`:** Zapnutie (6s interval) a vypnutie strešného kalibračného režimu.
+
+### 3. Ochrana kľúčov pred bezpečnostnými robotmi:
 - Kľúč Adafruit IO je v `include/Secrets.h` uložený bez prefixu `aio_` (iba 28 znakov).
 - Funkcia `Config::getAioKey()` ho za behu poskladá. Vďaka tomu roboty na GitHube kľúč v `.bin` súboroch nezachytia a kľúč sa **nezablokuje**.
+
 
 ---
 

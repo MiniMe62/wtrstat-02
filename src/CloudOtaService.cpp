@@ -71,18 +71,38 @@ OtaCheckResult CloudOtaService::checkVersion() {
         return result;
     }
 
-    WiFiClientSecure client;
-    client.setInsecure(); // Pre bezpečné stiahnutie z GitHub HTTPS bez správy Root CA certifikátov
+    Serial.printf("\n[CloudOTA] Kontrolujem verziu z URL: %s (Stanica: %s)\n", Config::GITHUB_VERSION_URL, Config::LOC_ID);
+    Serial.printf("[CloudOTA] Voľná RAM pred kontrolou: %u bajtov (najväčší súvislý blok: %u B)\n",
+                  ESP.getFreeHeap(), ESP.getMaxAllocHeap());
+
+    bool isHttps = String(Config::GITHUB_VERSION_URL).startsWith("https://");
+    WiFiClientSecure* secureClient = nullptr;
+    WiFiClient plainClient;
+
+    if (isHttps) {
+        secureClient = new WiFiClientSecure();
+        if (!secureClient) {
+            result.error = "Nedostatok RAM pre TLS klienta";
+            return result;
+        }
+        secureClient->setInsecure();
+        secureClient->setHandshakeTimeout(25);
+        secureClient->setTimeout(15000);
+    } else {
+        plainClient.setTimeout(15000);
+    }
 
     HTTPClient http;
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-    http.setTimeout(10000);
+    http.setUserAgent("ESP32-WeatherStation-OTA");
+    http.setTimeout(15000);
 
-    Serial.printf("[CloudOTA] Kontrolujem verziu z URL: %s (Stanica: %s)\n", Config::GITHUB_VERSION_URL, Config::LOC_ID);
+    bool begun = isHttps ? http.begin(*secureClient, Config::GITHUB_VERSION_URL)
+                         : http.begin(plainClient, Config::GITHUB_VERSION_URL);
 
-    if (http.begin(client, Config::GITHUB_VERSION_URL)) {
+    if (begun) {
         int httpCode = http.GET();
-        if (httpCode == HTTP_CODE_OK) {
+        if (httpCode == HTTP_CODE_OK || httpCode == 200) {
             String payload = http.getString();
             parseVersionJson(payload, result);
         } else {
@@ -90,7 +110,11 @@ OtaCheckResult CloudOtaService::checkVersion() {
         }
         http.end();
     } else {
-        result.error = "Nepodarilo sa vytvorit HTTPS spojenie na GitHub";
+        result.error = "Nepodarilo sa vytvorit spojenie na GitHub";
+    }
+
+    if (secureClient) {
+        delete secureClient;
     }
 
     return result;
@@ -99,65 +123,165 @@ OtaCheckResult CloudOtaService::checkVersion() {
 bool CloudOtaService::performUpdate(const String& url) {
     if (WiFi.status() != WL_CONNECTED || url.isEmpty()) {
         Serial.println("[CloudOTA] Zlyhanie: WiFi nie je pripojene alebo prazdna URL");
+        setAdafruitCommandStatus("OTA ERR: WiFi odpojene");
         return false;
     }
 
-    Serial.printf("[CloudOTA] Spúšťam priame HTTPS OTA sťahovanie z: %s\n", url.c_str());
+    Serial.printf("\n[CloudOTA] ==========================================\n");
+    Serial.printf("[CloudOTA] Spúšťam OTA sťahovanie z:\n[CloudOTA] %s\n", url.c_str());
+    Serial.printf("[CloudOTA] Voľná RAM pred sťahovaním: %u bajtov (najväčší blok: %u B)\n",
+                  ESP.getFreeHeap(), ESP.getMaxAllocHeap());
+    Serial.printf("[CloudOTA] ==========================================\n");
 
-    WiFiClientSecure client;
-    client.setInsecure(); // GitHub HTTPS certifikáty bez potreby správy Root CA
+    bool isHttps = url.startsWith("https://");
+    WiFiClientSecure* secureClient = nullptr;
+    WiFiClient plainClient;
+
+    if (isHttps) {
+        secureClient = new WiFiClientSecure();
+        if (!secureClient) {
+            Serial.println("[CloudOTA] Chyba: Nedostatok RAM pre WiFiClientSecure!");
+            setAdafruitCommandStatus("OTA ERR: Nedostatok RAM pre TLS");
+            return false;
+        }
+        secureClient->setInsecure();
+        secureClient->setHandshakeTimeout(30);
+        secureClient->setTimeout(25000);
+    } else {
+        plainClient.setTimeout(25000);
+    }
 
     HTTPClient http;
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-    http.setTimeout(35000); // 35s timeout pre stabilné stiahnutie 1.2 MB
+    http.setUserAgent("ESP32-WeatherStation-OTA");
+    http.setTimeout(35000);
 
-    if (!http.begin(client, url)) {
+    bool begun = isHttps ? http.begin(*secureClient, url)
+                         : http.begin(plainClient, url);
+
+    if (!begun) {
         Serial.println("[CloudOTA] Nepodarilo sa inicializovať HTTPClient spojenie.");
+        setAdafruitCommandStatus("OTA ERR: HTTP init zlyhal");
+        if (secureClient) delete secureClient;
         return false;
     }
 
     int httpCode = http.GET();
     if (httpCode != HTTP_CODE_OK && httpCode != 200) {
         Serial.printf("[CloudOTA] HTTP GET zlyhal s kódom: %d (%s)\n", httpCode, http.errorToString(httpCode).c_str());
+        setAdafruitCommandStatus(String("OTA ERR: HTTP kód ") + httpCode);
         http.end();
+        if (secureClient) delete secureClient;
         return false;
     }
 
     int contentLength = http.getSize();
-    Serial.printf("[CloudOTA] Server nahlásil veľkosť binárky: %d bajtov\n", contentLength);
+    Serial.printf("[CloudOTA] Server nahlásil veľkosť binárky: %d bajtov (%d KB)\n",
+                  contentLength, contentLength / 1024);
 
     if (contentLength <= 0) {
         Serial.println("[CloudOTA] Chyba: Neplatná veľkosť súboru (Content-Length <= 0)!");
+        setAdafruitCommandStatus("OTA ERR: Nulova velkost");
         http.end();
+        if (secureClient) delete secureClient;
         return false;
     }
 
     if (!Update.begin(contentLength)) {
         Serial.printf("[CloudOTA] Update.begin zlyhal! Nedostatok miesta v OTA partícii. Kód chyby: %u\n", Update.getError());
+        setAdafruitCommandStatus(String("OTA ERR: Partícia kód ") + Update.getError());
         http.end();
+        if (secureClient) delete secureClient;
         return false;
     }
 
-    Serial.println("[CloudOTA] Zapisujem streamované dáta priamo do flash pamäte...");
+    Serial.println("[CloudOTA] Zapisujem streamované dáta priamo do flash pamäte po blokoch...");
     WiFiClient* stream = http.getStreamPtr();
-    size_t written = Update.writeStream(*stream);
+    stream->setTimeout(20000);
 
-    if (written != (size_t)contentLength) {
-        Serial.printf("[CloudOTA] Zlyhanie: Zapísané iba %u z %d bajtov! Prerušujem.\n", written, contentLength);
+    const size_t CHUNK_SIZE = 4096;
+    uint8_t* buff = (uint8_t*)malloc(CHUNK_SIZE);
+    if (!buff) {
+        buff = (uint8_t*)malloc(2048);
+    }
+    if (!buff) {
+        Serial.println("[CloudOTA] Chyba: Nedostatok RAM pre download buffer!");
+        setAdafruitCommandStatus("OTA ERR: Nedostatok RAM pre buffer");
         Update.abort();
         http.end();
+        if (secureClient) delete secureClient;
+        return false;
+    }
+
+    size_t actualChunkSize = (ESP.getFreeHeap() > 30000) ? CHUNK_SIZE : 2048;
+    size_t totalWritten = 0;
+    unsigned long lastDataMs = millis();
+    unsigned long lastLogMs = millis();
+    bool writeOk = true;
+
+    while (http.connected() && (totalWritten < (size_t)contentLength)) {
+        size_t avail = stream->available();
+        if (avail > 0) {
+            size_t toRead = (avail > actualChunkSize) ? actualChunkSize : avail;
+            if (totalWritten + toRead > (size_t)contentLength) {
+                toRead = (size_t)contentLength - totalWritten;
+            }
+            int bytesRead = stream->read(buff, toRead);
+            if (bytesRead > 0) {
+                size_t bytesWritten = Update.write(buff, bytesRead);
+                if (bytesWritten != (size_t)bytesRead) {
+                    Serial.printf("[CloudOTA] Chyba zápisu flash! Napísané %u z %d B. Kód: %u\n",
+                                  bytesWritten, bytesRead, Update.getError());
+                    writeOk = false;
+                    break;
+                }
+                totalWritten += bytesWritten;
+                lastDataMs = millis();
+
+                if (millis() - lastLogMs > 2500) {
+                    lastLogMs = millis();
+                    int pct = (int)((totalWritten * 100ULL) / contentLength);
+                    Serial.printf("[CloudOTA] Priebeh: %d%% (%u / %d KB)\n",
+                                  pct, totalWritten / 1024, contentLength / 1024);
+                }
+                yield();
+            }
+        } else {
+            if (millis() - lastDataMs > 30000) {
+                Serial.println("[CloudOTA] Timeout: Stream bez dát dlhšie ako 30s!");
+                writeOk = false;
+                break;
+            }
+            delay(10);
+            yield();
+        }
+    }
+
+    free(buff);
+
+    if (!writeOk || totalWritten != (size_t)contentLength) {
+        Serial.printf("[CloudOTA] Zlyhanie: Zapísané iba %u z %d bajtov! Prerušujem.\n",
+                      totalWritten, contentLength);
+        setAdafruitCommandStatus(String("OTA ERR: Zapisanych len ") + (totalWritten / 1024) + "/" + (contentLength / 1024) + " KB");
+        Update.abort();
+        http.end();
+        if (secureClient) delete secureClient;
         return false;
     }
 
     if (!Update.end()) {
         Serial.printf("[CloudOTA] Overenie a finalizácia zápisu zlyhala! Kód chyby: %u\n", Update.getError());
+        setAdafruitCommandStatus(String("OTA ERR: Update.end kód ") + Update.getError());
         http.end();
+        if (secureClient) delete secureClient;
         return false;
     }
 
     if (!Update.isFinished()) {
         Serial.println("[CloudOTA] Chyba: Zápis OTA nie je kompletne dokončený!");
+        setAdafruitCommandStatus("OTA ERR: Neukoncene");
         http.end();
+        if (secureClient) delete secureClient;
         return false;
     }
 
@@ -166,9 +290,10 @@ bool CloudOtaService::performUpdate(const String& url) {
     Serial.println("[CloudOTA] ESP32 sa reštartuje do nového firmvéru...");
     Serial.println("[CloudOTA] ==========================================\n");
 
-    setAdafruitCommandStatus("OTA WRITTEN -> REBOOT");
+    setAdafruitCommandStatus("OTA OK -> REBOOT");
     http.end();
-    delay(1000);
+    if (secureClient) delete secureClient;
+    delay(1500);
     ESP.restart();
     return true;
 }
@@ -281,23 +406,20 @@ bool CloudOtaService::checkAdafruitCommand() {
             if (val.equalsIgnoreCase("UPDATE")) {
                 Serial.println("\n[CloudOTA] ==========================================");
                 Serial.println("[CloudOTA] Prijatý príkaz UPDATE z Adafruit IO!");
+                Serial.println("[CloudOTA] Plánujem odloženú OTA aktualizáciu pre čistú RAM...");
                 Serial.println("[CloudOTA] ==========================================");
-                
-                // 1. Ochrana pred zacyklením - resetujeme feed na IDLE
-                resetAdafruitCommandFeed();
-
-                // 2. Kontrola novej verzie
-                OtaCheckResult res = checkVersion();
-                if (res.updateAvailable && !res.downloadUrl.isEmpty()) {
-                    Serial.printf("[CloudOTA] Na GitHube je dostupná nová verzia v%s (aktuálna v%s). Spúšťam inštaláciu...\n",
-                                  res.newVersion.c_str(), res.currentVersion.c_str());
-                    return performUpdate(res.downloadUrl);
-                } else if (res.error.length() > 0) {
-                    Serial.printf("[CloudOTA] Kontrola verzie zlyhala: %s\n", res.error.c_str());
-                } else {
-                    Serial.printf("[CloudOTA] Zariadenie už má najnovšiu verziu v%s. Inštalácia vynechaná.\n",
-                                  res.currentVersion.c_str());
-                }
+                _otaPending = true;
+                _otaPendingTime = millis();
+                _pendingOtaUrl = "";
+                setAdafruitCommandStatus("OTA: Inic. za 3s...");
+            } else if (val.startsWith("OTA_URL:") || val.startsWith("OTA:")) {
+                String customUrl = val.substring(val.indexOf(':') + 1);
+                customUrl.trim();
+                Serial.printf("\n[CloudOTA] Prijatý príkaz vlastnej OTA URL: %s\n", customUrl.c_str());
+                _otaPending = true;
+                _otaPendingTime = millis();
+                _pendingOtaUrl = customUrl;
+                setAdafruitCommandStatus("OTA: Custom URL za 3s...");
             } else if (val.equalsIgnoreCase("CALIB") || val.equalsIgnoreCase("CALIB_START") || val.equalsIgnoreCase("CALIBRATION")) {
                 if (!_calibMode) {
                     Serial.println("\n[CloudOTA] ==========================================");
@@ -340,9 +462,9 @@ bool CloudOtaService::checkAdafruitCommand() {
                 uint32_t uptimeSec = millis() / 1000;
                 uint32_t hrs = uptimeSec / 3600;
                 uint32_t mins = (uptimeSec % 3600) / 60;
-                char buf[80];
-                snprintf(buf, sizeof(buf), "v%s (%s) | Up:%uh%02um | RSSI:%ddBm",
-                         Config::FIRMWARE_VERSION, Config::LOC_ID, hrs, mins, WiFi.RSSI());
+                char buf[120];
+                snprintf(buf, sizeof(buf), "v%s (%s) | Heap:%uKB | RSSI:%ddBm | Up:%uh%02um",
+                         Config::FIRMWARE_VERSION, Config::LOC_ID, ESP.getFreeHeap() / 1024, WiFi.RSSI(), hrs, mins);
                 setAdafruitCommandStatus(String(buf));
             }
         }
@@ -352,3 +474,38 @@ bool CloudOtaService::checkAdafruitCommand() {
     http.end();
     return false;
 }
+
+void CloudOtaService::handlePendingOta() {
+    if (!_otaPending) return;
+
+    // Počkáme aspoň 3 sekundy od prijatia príkazu, aby sa všetky sieťové volania dokončili a uvoľnila sa RAM
+    if (millis() - _otaPendingTime < 3000) {
+        return;
+    }
+
+    _otaPending = false;
+    Serial.println("\n[CloudOTA] >>> SPUŠŤAM ODLOŽENÚ OTA AKTUALIZÁCIU V ČISTOM PROSTREDÍ <<<");
+    Serial.printf("[CloudOTA] Voľná RAM: %u bajtov (najväčší súvislý blok: %u B)\n",
+                  ESP.getFreeHeap(), ESP.getMaxAllocHeap());
+
+    String targetUrl = _pendingOtaUrl;
+    if (targetUrl.isEmpty()) {
+        OtaCheckResult res = checkVersion();
+        if (res.updateAvailable && !res.downloadUrl.isEmpty()) {
+            Serial.printf("[CloudOTA] Nájdená nová verzia v%s (aktuálna v%s). Spúšťam inštaláciu...\n",
+                          res.newVersion.c_str(), res.currentVersion.c_str());
+            performUpdate(res.downloadUrl);
+        } else if (res.error.length() > 0) {
+            Serial.printf("[CloudOTA] Kontrola verzie zlyhala: %s\n", res.error.c_str());
+            setAdafruitCommandStatus(String("OTA ERR: ") + res.error);
+        } else {
+            Serial.printf("[CloudOTA] Zariadenie už má najnovšiu verziu v%s. Inštalácia vynechaná.\n",
+                          res.currentVersion.c_str());
+            setAdafruitCommandStatus(String("OTA: v") + Config::FIRMWARE_VERSION + " je aktualna");
+        }
+    } else {
+        Serial.printf("[CloudOTA] Spúšťam priamy update zo zadanej URL: %s\n", targetUrl.c_str());
+        performUpdate(targetUrl);
+    }
+}
+

@@ -300,4 +300,7 @@ void loop() {
     if (wifiService.isConnected()) {
         webServerMgr.handleClient();
     }
+
+    // Obsluha odloženej OTA aktualizácie s plne uvoľnenou RAM
+    cloudOta.handlePendingOta();
 }
