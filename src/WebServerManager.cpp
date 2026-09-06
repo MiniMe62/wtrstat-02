@@ -1785,10 +1785,10 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
             lightDonutChartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Priame slnko (Svit)', 'Polooblačno', 'Zamračené', 'Noc / Tma'],
+                    labels: ['Priame slnko (Svit)', 'Polooblačno', 'Zamračené', 'Noc / Tma', 'Bez dát / Budúcnosť'],
                     datasets: [{
-                        data: [25, 30, 20, 25],
-                        backgroundColor: ['#f59e0b', '#fde047', '#94a3b8', '#1e293b'],
+                        data: [20, 25, 15, 25, 15],
+                        backgroundColor: ['#f59e0b', '#fde047', '#94a3b8', '#1e293b', 'rgba(100, 116, 139, 0.45)'],
                         borderColor: '#0f172a',
                         borderWidth: 2
                     }]
@@ -1805,7 +1805,13 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                             backgroundColor: 'rgba(15, 23, 42, 0.92)',
                             callbacks: {
                                 label: function(context) {
-                                    return ` ${context.label}: ${context.parsed.toFixed(1)} %`;
+                                    const pct = context.parsed;
+                                    const numDays = (lightPeriod === '3d') ? 3 : (lightPeriod === '7d' ? 7 : 1);
+                                    const totalMinutes = numDays * 24 * 60;
+                                    const catMinutes = Math.round((pct / 100) * totalMinutes);
+                                    const h = Math.floor(catMinutes / 60);
+                                    const m = catMinutes % 60;
+                                    return ` ${context.label}: ${pct.toFixed(1)} % (${h}h ${m.toString().padStart(2, '0')}m)`;
                                 }
                             }
                         }
@@ -1831,25 +1837,6 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
             else if (last >= 15) currentCond = 'Zamračené';
             else if (last >= 3) currentCond = 'Husto zamračené';
             document.getElementById('statLightCurrent').innerText = currentCond;
-
-            // Aktualizácia koláčového grafu
-            let countSun = 0, countCloudy = 0, countOvercast = 0, countNight = 0;
-            valid.forEach(v => {
-                if (v >= 60) countSun++;
-                else if (v >= 35) countCloudy++;
-                else if (v >= 15) countOvercast++;
-                else countNight++;
-            });
-            const total = valid.length;
-            if (lightDonutChartInstance) {
-                lightDonutChartInstance.data.datasets[0].data = [
-                    (countSun / total) * 100,
-                    (countCloudy / total) * 100,
-                    (countOvercast / total) * 100,
-                    (countNight / total) * 100
-                ];
-                lightDonutChartInstance.update();
-            }
         }
 
         function updateSunshineTimeline(labels, data) {
@@ -1890,6 +1877,10 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
             let totalSunSlots = 0;
             let todaySunSlots = 0;
+            let countCloudySlots = 0;
+            let countOvercastSlots = 0;
+            let countNightSlots = 0;
+            let countFutureSlots = 0;
 
             const dayNamesShort = ['Ne', 'Po', 'Ut', 'St', 'Št', 'Pi', 'So'];
 
@@ -1917,6 +1908,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     // Kontrola budúcnosti (iba pre dnešný deň po aktuálnom čase)
                     if (isToday && slotStartTime.getTime() > now.getTime()) {
                         seg.classList.add('future');
+                        countFutureSlots++;
                         seg.title = `${dateStr} ${timeLabel}: Zatiaľ nezaznamenané (budúcnosť)`;
                         bar.appendChild(seg);
                         continue;
@@ -1952,6 +1944,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     if (v === null || isNaN(v)) {
                         cond = 'nodata';
                         labelText = 'Bez dát';
+                        countNightSlots++;
                     } else if (v >= 60) {
                         cond = 'sunny';
                         labelText = 'Priame slnko (Svit)';
@@ -1960,15 +1953,19 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     } else if (v >= 35) {
                         cond = 'cloudy';
                         labelText = 'Polooblačno';
+                        countCloudySlots++;
                     } else if (v >= 15) {
                         cond = 'overcast';
                         labelText = 'Zamračené';
+                        countOvercastSlots++;
                     } else if (v >= 3) {
                         cond = 'overcast-dark';
                         labelText = 'Husto zamračené';
+                        countOvercastSlots++;
                     } else {
                         cond = 'night';
                         labelText = 'Noc / Tma';
+                        countNightSlots++;
                     }
 
                     seg.classList.add(cond);
@@ -1977,6 +1974,19 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     bar.appendChild(seg);
                 }
             });
+
+            // Aktualizácia koláčového grafu (5 kategórií vrátane Bez dát / Budúcnosť)
+            const totalPeriodSlots = totalSunSlots + countCloudySlots + countOvercastSlots + countNightSlots + countFutureSlots;
+            if (lightDonutChartInstance && totalPeriodSlots > 0) {
+                lightDonutChartInstance.data.datasets[0].data = [
+                    (totalSunSlots / totalPeriodSlots) * 100,
+                    (countCloudySlots / totalPeriodSlots) * 100,
+                    (countOvercastSlots / totalPeriodSlots) * 100,
+                    (countNightSlots / totalPeriodSlots) * 100,
+                    (countFutureSlots / totalPeriodSlots) * 100
+                ];
+                lightDonutChartInstance.update();
+            }
 
             // Aktualizácia časovej osi pod lištou (sunshine-ticks)
             if (ticksEl) {
