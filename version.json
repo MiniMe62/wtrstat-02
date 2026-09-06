@@ -1,11 +1,13 @@
 {
   "TEST_VIDIEK": {
-    "version": "2.2.5",
-    "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_TEST_VIDIEK.bin"
+    "version": "2.2.6",
+    "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_TEST_VIDIEK.bin",
+    "notes": "v2.2.6: Asynchronous decoupled OTA + chunked stream download + DR (GPIO 25) + rain 25mV fix"
   },
   "TEST": {
-    "version": "2.2.5",
-    "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_TEST_VIDIEK.bin"
+    "version": "2.2.6",
+    "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_TEST_VIDIEK.bin",
+    "notes": "v2.2.6: Asynchronous decoupled OTA + chunked stream download + DR (GPIO 25) + rain 25mV fix"
   },
   "TEST_MESTO": {
     "version": "2.0.2",
