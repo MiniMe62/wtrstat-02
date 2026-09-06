@@ -565,6 +565,28 @@
         .sunshine-segment.overcast { background: #94a3b8; }
         .sunshine-segment.cloudy { background: #fde047; }
         .sunshine-segment.sunny { background: #f59e0b; }
+        .sunshine-segment.future {
+            background: repeating-linear-gradient(
+                -45deg,
+                rgba(30, 41, 59, 0.45),
+                rgba(30, 41, 59, 0.45) 3px,
+                rgba(15, 23, 42, 0.75) 3px,
+                rgba(15, 23, 42, 0.75) 6px
+            );
+            opacity: 0.6;
+        }
+        .sunshine-segment.nodata {
+            background: #0f172a;
+            opacity: 0.35;
+        }
+        .sunshine-divider-midnight {
+            width: 2px;
+            height: 100%;
+            background: #ef4444;
+            box-shadow: 0 0 6px rgba(239, 68, 68, 0.85);
+            z-index: 2;
+            flex-shrink: 0;
+        }
         .sunshine-ticks {
             display: flex;
             justify-content: space-between;
@@ -866,13 +888,13 @@
             <!-- 3. Sunshine Timeline Bar (Campbell-Stokes Heliograf) -->
             <div class="sunshine-bar-wrapper" id="sunshineBarWrapper">
                 <div class="sunshine-bar-title">
-                    <span>⏱️ Heliografická Lišta Slnečného Svitu (24h Záznam)</span>
+                    <span id="sunshineBarTitleText">⏱️ Heliografická Lišta Slnečného Svitu (Dnes: 00:00 – 24:00)</span>
                     <span id="sunshineTimelineTotal" style="color: #fbbf24; font-weight: 700;">Dnes: --</span>
                 </div>
                 <div class="sunshine-bar" id="sunshineBar">
                     <!-- Segmenty sa dynamicky generujú cez JS -->
                 </div>
-                <div class="sunshine-ticks">
+                <div class="sunshine-ticks" id="sunshineTicks">
                     <span>00:00</span>
                     <span>04:00</span>
                     <span>08:00</span>
@@ -887,6 +909,8 @@
                     <span class="legend-pill-sun"><span class="dot" style="background:#94a3b8;"></span> Zamračené</span>
                     <span class="legend-pill-sun"><span class="dot" style="background:#fde047;"></span> Polooblačno</span>
                     <span class="legend-pill-sun"><span class="dot" style="background:#f59e0b;"></span> Priame slnko (Svit)</span>
+                    <span class="legend-pill-sun"><span class="dot" style="background: repeating-linear-gradient(-45deg, rgba(30,41,59,0.8), rgba(30,41,59,0.8) 2px, rgba(15,23,42,0.9) 2px, rgba(15,23,42,0.9) 4px); border: 1px dashed rgba(255,255,255,0.3);"></span> Bez dát / Budúcnosť</span>
+                    <span class="legend-pill-sun"><span class="dot" style="background:#ef4444; box-shadow: 0 0 4px #ef4444;"></span> Polnoc (00:00)</span>
                 </div>
             </div>
             
@@ -1512,9 +1536,22 @@
 
         let liveLightLabels = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:15'];
         let liveLightSeries = [5, 12, 35, 60, 75, 88, 92, 85, 70, 45, 20, 10]; // %
+        let liveLightSamples = [];
 
         let activeLightLabels = [...liveLightLabels];
         let activeLightData = [...liveLightSeries];
+        let activeLightSamples = [];
+
+        // Predvyplnenie časových značiek pre východzie live vzorky
+        const _initNow = new Date();
+        liveLightLabels.forEach((lbl, idx) => {
+            const parts = lbl.split(':');
+            const h = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            const d = new Date(_initNow.getFullYear(), _initNow.getMonth(), _initNow.getDate(), h, m, 0);
+            liveLightSamples.push({ date: d, val: liveLightSeries[idx] });
+        });
+        activeLightSamples = [...liveLightSamples];
 
         let lightAreaChartInstance = null;
         let lightDonutChartInstance = null;
@@ -1691,47 +1728,178 @@
             const bar = document.getElementById('sunshineBar');
             if (!bar) return;
             bar.innerHTML = '';
-            if (!data || data.length === 0) return;
 
-            let sunCount = 0;
-            data.forEach((val, idx) => {
-                const seg = document.createElement('div');
-                seg.className = 'sunshine-segment';
-                let cond = 'night';
-                let labelText = 'Noc / Tma';
-                const v = (val !== null && !isNaN(val)) ? val : 0;
+            const ticksEl = document.getElementById('sunshineTicks');
+            const titleEl = document.getElementById('sunshineBarTitleText');
+            const totEl = document.getElementById('sunshineTimelineTotal');
+            const statSun = document.getElementById('statLightSunshine');
 
-                if (v >= 60) {
-                    cond = 'sunny';
-                    labelText = 'Priame slnko';
-                    sunCount++;
-                } else if (v >= 35) {
-                    cond = 'cloudy';
-                    labelText = 'Polooblačno';
-                } else if (v >= 15) {
-                    cond = 'overcast';
-                    labelText = 'Zamračené';
-                } else if (v >= 3) {
-                    cond = 'overcast-dark';
-                    labelText = 'Husto zamračené';
+            const now = new Date();
+            const period = lightPeriod || '24h';
+
+            // Počet kalendárnych dní podľa zvoleného obdobia
+            let numDays = 1;
+            if (period === '3d') numDays = 3;
+            else if (period === '7d') numDays = 7;
+
+            // Titulok lišty
+            if (titleEl) {
+                if (numDays === 1) {
+                    titleEl.innerText = '⏱️ Heliografická Lišta Slnečného Svitu (Dnes: 00:00 – 24:00)';
+                } else {
+                    titleEl.innerText = `⏱️ Heliografická Lišta Slnečného Svitu (${numDays} dni po dňoch: 00:00 – 24:00)`;
+                }
+            }
+
+            // Generovanie zoznamu dní (od najstaršieho po dnešok)
+            const days = [];
+            for (let i = numDays - 1; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i, 0, 0, 0, 0);
+                days.push(d);
+            }
+
+            const samples = (activeLightSamples && activeLightSamples.length > 0) ? activeLightSamples : [];
+
+            let totalSunSlots = 0;
+            let todaySunSlots = 0;
+
+            const dayNamesShort = ['Ne', 'Po', 'Ut', 'St', 'Št', 'Pi', 'So'];
+
+            days.forEach((dayStart, dayIdx) => {
+                const isToday = (dayIdx === days.length - 1);
+                const dateStr = `${dayNamesShort[dayStart.getDay()]} ${dayStart.getDate()}.${dayStart.getMonth() + 1}.`;
+
+                // Červená ryska o polnoci medzi dňami (pred začiatkom dňa 1..N)
+                if (dayIdx > 0) {
+                    const divider = document.createElement('div');
+                    divider.className = 'sunshine-divider-midnight';
+                    divider.title = `Polnoc 00:00 (${dateStr})`;
+                    bar.appendChild(divider);
                 }
 
-                seg.classList.add(cond);
-                const timeStr = labels && labels[idx] ? labels[idx] : '';
-                seg.title = `${timeStr}: ${v.toFixed(0)}% (${labelText})`;
-                bar.appendChild(seg);
+                // Každý deň má 96 slotov po 15 minút (00:00 až 23:45)
+                for (let s = 0; s < 96; s++) {
+                    const slotStartTime = new Date(dayStart.getTime() + s * 15 * 60 * 1000);
+                    const slotMidTime = new Date(slotStartTime.getTime() + 7.5 * 60 * 1000);
+                    const timeLabel = slotStartTime.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
+
+                    const seg = document.createElement('div');
+                    seg.className = 'sunshine-segment';
+
+                    // Kontrola budúcnosti (iba pre dnešný deň po aktuálnom čase)
+                    if (isToday && slotStartTime.getTime() > now.getTime()) {
+                        seg.classList.add('future');
+                        seg.title = `${dateStr} ${timeLabel}: Zatiaľ nezaznamenané (budúcnosť)`;
+                        bar.appendChild(seg);
+                        continue;
+                    }
+
+                    // Vyhľadanie najlepšej vzorky pre tento slot (okno ±12 minút od stredu slotu)
+                    let bestSample = null;
+                    let minDiff = 12 * 60 * 1000;
+
+                    for (let k = 0; k < samples.length; k++) {
+                        const samp = samples[k];
+                        const diff = Math.abs(samp.date.getTime() - slotMidTime.getTime());
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            bestSample = samp;
+                        }
+                    }
+
+                    let v = null;
+                    if (bestSample) {
+                        v = bestSample.val;
+                    } else {
+                        // Nočné hodiny bez záznamu (pred 05:30 alebo po 21:00) sú bezpečne Noc (0 %)
+                        const timeInMin = slotStartTime.getHours() * 60 + slotStartTime.getMinutes();
+                        if (timeInMin < 5 * 60 + 30 || timeInMin >= 21 * 60) {
+                            v = 0;
+                        }
+                    }
+
+                    let cond = 'night';
+                    let labelText = 'Noc / Tma';
+
+                    if (v === null || isNaN(v)) {
+                        cond = 'nodata';
+                        labelText = 'Bez dát';
+                    } else if (v >= 60) {
+                        cond = 'sunny';
+                        labelText = 'Priame slnko (Svit)';
+                        totalSunSlots++;
+                        if (isToday) todaySunSlots++;
+                    } else if (v >= 35) {
+                        cond = 'cloudy';
+                        labelText = 'Polooblačno';
+                    } else if (v >= 15) {
+                        cond = 'overcast';
+                        labelText = 'Zamračené';
+                    } else if (v >= 3) {
+                        cond = 'overcast-dark';
+                        labelText = 'Husto zamračené';
+                    } else {
+                        cond = 'night';
+                        labelText = 'Noc / Tma';
+                    }
+
+                    seg.classList.add(cond);
+                    const valDisplay = (v !== null && !isNaN(v)) ? `${v.toFixed(0)}%` : '--%';
+                    seg.title = `${dateStr} ${timeLabel}: ${valDisplay} (${labelText})`;
+                    bar.appendChild(seg);
+                }
             });
 
-            // Odhad celkového svitu
-            const intervalMinutes = (labels && labels.length > 1) ? 15 : 15;
-            const totalMinutes = sunCount * intervalMinutes;
-            const hrs = Math.floor(totalMinutes / 60);
-            const mins = totalMinutes % 60;
-            const formatted = `${hrs}h ${mins.toString().padStart(2, '0')}m`;
-            const totEl = document.getElementById('sunshineTimelineTotal');
-            if (totEl) totEl.innerText = `Dnes: ${formatted}`;
-            const statSun = document.getElementById('statLightSunshine');
-            if (statSun) statSun.innerText = formatted;
+            // Aktualizácia časovej osi pod lištou (sunshine-ticks)
+            if (ticksEl) {
+                ticksEl.innerHTML = '';
+                if (numDays === 1) {
+                    const ticks = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'];
+                    ticks.forEach(t => {
+                        const sp = document.createElement('span');
+                        sp.innerText = t;
+                        ticksEl.appendChild(sp);
+                    });
+                } else {
+                    days.forEach((d, idx) => {
+                        if (idx > 0) {
+                            const sep = document.createElement('span');
+                            sep.style.color = '#ef4444';
+                            sep.style.fontWeight = '700';
+                            sep.title = 'Polnoc (00:00)';
+                            sep.innerText = '● 00:00';
+                            ticksEl.appendChild(sep);
+                        }
+                        const sp = document.createElement('span');
+                        const isToday = (idx === days.length - 1);
+                        const dayStr = `${dayNamesShort[d.getDay()]} ${d.getDate()}.${d.getMonth() + 1}.`;
+                        sp.innerText = isToday ? `Dnes (${dayStr})` : dayStr;
+                        if (isToday) {
+                            sp.style.color = '#fbbf24';
+                            sp.style.fontWeight = '600';
+                        }
+                        ticksEl.appendChild(sp);
+                    });
+                }
+            }
+
+            // Súčet dĺžky slnečného svitu (1 slot = 15 minút)
+            const todayMins = todaySunSlots * 15;
+            const totalMins = totalSunSlots * 15;
+            const todayFormatted = `${Math.floor(todayMins / 60)}h ${(todayMins % 60).toString().padStart(2, '0')}m`;
+            const totalFormatted = `${Math.floor(totalMins / 60)}h ${(totalMins % 60).toString().padStart(2, '0')}m`;
+
+            if (totEl) {
+                if (numDays === 1) {
+                    totEl.innerText = `Dnes: ${todayFormatted}`;
+                } else {
+                    totEl.innerText = `Spolu: ${totalFormatted} (Dnes: ${todayFormatted})`;
+                }
+            }
+
+            if (statSun) {
+                statSun.innerText = todayFormatted;
+            }
         }
 
         function updateSolarGauge(percent, condition) {
@@ -1810,11 +1978,12 @@
                 document.getElementById('lightChartLoading').style.display = 'none';
                 activeLightLabels = [...liveLightLabels];
                 activeLightData = [...liveLightSeries];
+                activeLightSamples = [...liveLightSamples];
                 renderLightChart();
             } else {
-                let resultsCount = 96; // 24h
-                if (period === '3d') resultsCount = 288;
-                if (period === '7d') resultsCount = 672;
+                let resultsCount = 110; // 24h
+                if (period === '3d') resultsCount = 320;
+                if (period === '7d') resultsCount = 720;
                 fetchThingSpeakLightHistory(resultsCount);
             }
         }
@@ -1852,13 +2021,16 @@
 
                 let labels = [];
                 let lightSeries = [];
+                let samples = [];
 
                 for (const feed of data.feeds) {
                     if (!feed.created_at) continue;
                     
                     const d = new Date(feed.created_at);
+                    if (isNaN(d.getTime())) continue;
+
                     let label = d.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
-                    if (resultsCount > 96) {
+                    if (resultsCount > 110) {
                         label = `${d.getDate()}.${d.getMonth() + 1}. ` + label;
                     }
 
@@ -1872,8 +2044,10 @@
                         } catch(e) {}
                     }
 
+                    const val = (lVal !== null && !isNaN(lVal)) ? lVal : 0;
                     labels.push(label);
-                    lightSeries.push(lVal !== null && !isNaN(lVal) ? lVal : 0);
+                    lightSeries.push(val);
+                    samples.push({ date: d, val: val });
                 }
 
                 loadingEl.style.display = 'none';
@@ -1886,6 +2060,7 @@
 
                 activeLightLabels = labels;
                 activeLightData = lightSeries;
+                activeLightSamples = samples;
                 renderLightChart();
 
             } catch (err) {
@@ -1899,15 +2074,18 @@
             const val = (lightVal !== null && !isNaN(lightVal)) ? lightVal : 0;
             liveLightLabels.push(timeLabel);
             liveLightSeries.push(val);
+            liveLightSamples.push({ date: new Date(), val: val });
 
             if (liveLightLabels.length > 25) {
                 liveLightLabels.shift();
                 liveLightSeries.shift();
+                liveLightSamples.shift();
             }
 
             if (lightPeriod === 'live') {
                 activeLightLabels = [...liveLightLabels];
                 activeLightData = [...liveLightSeries];
+                activeLightSamples = [...liveLightSamples];
                 renderLightChart();
             }
         }
