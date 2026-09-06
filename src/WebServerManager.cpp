@@ -4031,6 +4031,7 @@ void WebServerManager::handleApiLive() {
         doc["skyCondition"] = _lightSensor->getSkyCondition();
         doc["sunshineDuration"] = _lightSensor->getSunshineFormatted();
         doc["isDirectSun"] = _lightSensor->isDirectSun();
+        doc["lightRange"] = _lightSensor->isDynamicRangeEnabled() ? (_lightSensor->isHighSensitivity() ? "HIGH" : "LOW") : "STAT";
     }
 
     if (_rainGauge) {

@@ -45,6 +45,9 @@ namespace Pinout {
     // TEMT6000 Senzor slnečného svitu / jasu - Analógový pin ADC1
     constexpr uint8_t LIGHT_SENSOR_PIN = 35;
 
+    // Riadiaci pin pre Dynamic Ranging záťažového odporu TEMT6000 (spodok 2k odporu do GPIO 25 namiesto GND)
+    constexpr int8_t LIGHT_RANGE_PIN = 25;
+
     // Zrážkomer (Tipping Bucket reed senzor) - GPIO s podporou prerušenia
     constexpr uint8_t RAIN_TIPPING_PIN = 4;
 

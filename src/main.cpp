@@ -21,7 +21,9 @@
 TempSensorManager tempMgr;
 Anemometer anemometer(Pinout::HALL_SENSOR);
 WindVane windVane(Pinout::WIND_VANE_PIN);
-LightSensor lightSensor(Pinout::LIGHT_SENSOR_PIN, Config::LIGHT_LOAD_RESISTOR_OHMS);
+LightSensor lightSensor(Pinout::LIGHT_SENSOR_PIN, Config::LIGHT_LOAD_RESISTOR_OHMS,
+                        Pinout::LIGHT_RANGE_PIN, Config::LIGHT_LOAD_HIGH_OHMS,
+                        Config::LIGHT_LOAD_LOW_OHMS, Config::LIGHT_DYNAMIC_RANGE_ENABLE);
 RainGauge rainGauge(Pinout::RAIN_TIPPING_PIN, Config::RAIN_MM_PER_PULSE);
 
 WifiService wifiService;

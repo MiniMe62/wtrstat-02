@@ -1,8 +1,13 @@
 #include "LightSensor.h"
 
-LightSensor::LightSensor(uint8_t pin, float loadResistorOhms)
+LightSensor::LightSensor(uint8_t pin, float loadResistorOhms, int8_t rangePin, float loadHighOhms, float loadLowOhms, bool dynamicRangeEnabled)
     : _pin(pin),
       _loadResistor(loadResistorOhms),
+      _rangePin(rangePin),
+      _loadResistorHigh(loadHighOhms),
+      _loadResistorLow(loadLowOhms),
+      _dynamicRangeEnabled(dynamicRangeEnabled),
+      _isHighSensitivity(false),
       _debug(false),
       _rawMilliVolts(0),
       _lastMilliVolts(0),
@@ -15,8 +20,35 @@ LightSensor::LightSensor(uint8_t pin, float loadResistorOhms)
 
 void LightSensor::begin() {
     analogReadResolution(12);
+    if (_dynamicRangeEnabled && _rangePin >= 0) {
+        // Inicializujeme v LOW citlivosti (spodok odporu 2k pripojený na GND cez OUTPUT LOW)
+        pinMode(_rangePin, OUTPUT);
+        digitalWrite(_rangePin, LOW);
+        _isHighSensitivity = false;
+        Serial.printf("[LightSensor] Dynamic Ranging AKTÍVNY na pin GPIO %d (Riadiaci pin: %d, R_high: %.0fR, R_low: %.0fR)\n",
+                      _pin, _rangePin, _loadResistorHigh, _loadResistorLow);
+    } else {
+        Serial.printf("[LightSensor] Inicializovany na ADC pin GPIO %d (Staticky R_load: %.1f Ohm)\n", _pin, _loadResistor);
+    }
     update();
-    Serial.printf("[LightSensor] Inicializovany na ADC pin GPIO %d (R_load: %.1f Ohm)\n", _pin, _loadResistor);
+}
+
+void LightSensor::setDynamicRange(bool enabled) {
+    _dynamicRangeEnabled = enabled;
+    if (_rangePin >= 0) {
+        if (_dynamicRangeEnabled) {
+            pinMode(_rangePin, OUTPUT);
+            digitalWrite(_rangePin, LOW);
+            _isHighSensitivity = false;
+            Serial.printf("[LightSensor] Dynamic Ranging zapnuty (Riadiaci pin: %d)\n", _rangePin);
+        } else {
+            // Bezpečnostný režim: stiahnuť na GND pre štandardný paralelný odpor
+            pinMode(_rangePin, OUTPUT);
+            digitalWrite(_rangePin, LOW);
+            _isHighSensitivity = false;
+            Serial.println("[LightSensor] Dynamic Ranging vypnuty (zostava staticky na LOW rozsahu)");
+        }
+    }
 }
 
 uint32_t LightSensor::readMilliVoltsAveraged(uint8_t samples) const {
@@ -33,19 +65,52 @@ void LightSensor::update() {
     _rawMilliVolts = readMilliVoltsAveraged(20);
 
     // Odpočítanie hardvérového offsetu ESP32 (cca 142 mV pri 0V na pine)
+    uint32_t cleanMilliVolts = 0;
     if (_rawMilliVolts > Config::LIGHT_ADC_ZERO_OFFSET_MV) {
-        _lastMilliVolts = _rawMilliVolts - Config::LIGHT_ADC_ZERO_OFFSET_MV;
-    } else {
-        _lastMilliVolts = 0;
+        cleanMilliVolts = _rawMilliVolts - Config::LIGHT_ADC_ZERO_OFFSET_MV;
     }
 
-    // Prepočet fotoprúdu I = U / R (v mikroampéroch uA)
-    // S difúznou bielou LED kupolou (difúzor tlmí cca 65-70% priameho svetla):
+    // Auto-ranging prepínanie rozsahov s hysteréziou
+    if (_dynamicRangeEnabled && _rangePin >= 0) {
+        if (!_isHighSensitivity && cleanMilliVolts < Config::LIGHT_RANGE_SWITCH_LOW_MV) {
+            // Sme v LOW citlivosti (1.67k), ale svetla je primálo -> odopneme 2k odpor do INPUT (HIGH citlivosť 10k)
+            pinMode(_rangePin, INPUT);
+            _isHighSensitivity = true;
+            delay(5); // Ustálenie náboja na pine
+            _rawMilliVolts = readMilliVoltsAveraged(20);
+            cleanMilliVolts = (_rawMilliVolts > Config::LIGHT_ADC_ZERO_OFFSET_MV) 
+                              ? (_rawMilliVolts - Config::LIGHT_ADC_ZERO_OFFSET_MV) : 0;
+        } else if (_isHighSensitivity && cleanMilliVolts > Config::LIGHT_RANGE_SWITCH_HIGH_MV) {
+            // Sme v HIGH citlivosti (10k), ale napätie sa blíži k stropu -> pripojíme 2k odpor na GND (LOW citlivosť 1.67k)
+            pinMode(_rangePin, OUTPUT);
+            digitalWrite(_rangePin, LOW);
+            _isHighSensitivity = false;
+            delay(5); // Ustálenie náboja
+            _rawMilliVolts = readMilliVoltsAveraged(20);
+            cleanMilliVolts = (_rawMilliVolts > Config::LIGHT_ADC_ZERO_OFFSET_MV) 
+                              ? (_rawMilliVolts - Config::LIGHT_ADC_ZERO_OFFSET_MV) : 0;
+        }
+    }
+
+    // Skutočný fotoprúd I = U / R (v mikroampéroch uA)
+    float activeResistor = _loadResistor;
+    if (_dynamicRangeEnabled && _rangePin >= 0) {
+        activeResistor = _isHighSensitivity ? _loadResistorHigh : _loadResistorLow;
+    }
+
     float current_uA = 0.0f;
-    if (_loadResistor > 0.0f) {
-        current_uA = ((float)_lastMilliVolts / _loadResistor) * 1000.0f;
+    if (activeResistor > 0.0f) {
+        current_uA = ((float)cleanMilliVolts / activeResistor) * 1000.0f;
     }
     _estimatedLux = current_uA * 35.0f;
+
+    // Normalizácia na virtuálne milivolty (ekvivalent pôvodného 2k rozsahu, kde 2800 mV = 100% jas)
+    // Zabezpečuje stálu kompatibilitu s prahmi stavu oblohy, heliografom a cloudom.
+    if (_dynamicRangeEnabled && _rangePin >= 0) {
+        _lastMilliVolts = (uint32_t)((current_uA * _loadResistor) / 1000.0f);
+    } else {
+        _lastMilliVolts = cleanMilliVolts;
+    }
 
     // Relatívne percento jasu (2800 mV čistého svetla = 100%)
     _brightnessPercent = ((float)_lastMilliVolts / 2800.0f) * 100.0f;
@@ -110,6 +175,10 @@ void LightSensor::resetDailySunshine() {
 }
 
 void LightSensor::printLiveDebug() const {
-    Serial.printf("[LightSensor] RAW: %4u mV | Ciste: %4u mV | Lux: %5.0f lx | Jas: %5.1f %% | %s | Svit: %s\n",
-                  _rawMilliVolts, _lastMilliVolts, _estimatedLux, _brightnessPercent, getSkyCondition(), getSunshineFormatted().c_str());
+    const char* rangeStr = "STAT";
+    if (_dynamicRangeEnabled && _rangePin >= 0) {
+        rangeStr = _isHighSensitivity ? "R_HIGH(10k)" : "R_LOW(1.67k)";
+    }
+    Serial.printf("[LightSensor] RAW: %4u mV | Ciste: %4u mV | Lux: %5.0f lx | Jas: %5.1f %% | [%s] | %s | Svit: %s\n",
+                  _rawMilliVolts, _lastMilliVolts, _estimatedLux, _brightnessPercent, rangeStr, getSkyCondition(), getSunshineFormatted().c_str());
 }

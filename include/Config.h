@@ -16,7 +16,7 @@
 // Vyberte aktívny profil pre kompiláciu:
 #define CURRENT_SITE SITE_TEST_VIDIEK
 
-#define WTRSTAT_FIRMWARE_VERSION "2.2.4"
+#define WTRSTAT_FIRMWARE_VERSION "2.2.5"
 
 namespace Config {
     // Verzia firmvéru a vzdialené aktualizácie
@@ -139,10 +139,17 @@ namespace Config {
     constexpr bool DEBUG_LIGHT_SENSOR = true;              // Zapína periodický výpis hodnôt jasu do Serial monitora
 
     // Prahové hodnoty osvetlenia (deliace hranice v čistých mV, kde 2800 mV = 100% jas)
-    constexpr uint32_t LIGHT_TH_NIGHT_MV = 80;             // Hranica: Noc / Tma (< 80 mV)
-    constexpr uint32_t LIGHT_TH_OVERCAST_MV = 300;         // Hranica: Husto zamračené / Dážď (80 - 299 mV)
+    constexpr uint32_t LIGHT_TH_NIGHT_MV = 25;             // Hranica: Noc / Tma (< 25 mV, znížené z 80 pre elimináciu falošnej noci pri daždi)
+    constexpr uint32_t LIGHT_TH_OVERCAST_MV = 300;         // Hranica: Husto zamračené / Dážď (25 - 299 mV)
     constexpr uint32_t LIGHT_TH_CLOUDY_MV = 650;           // Hranica: Zamračené / Sivá obloha (300 - 649 mV)
     constexpr uint32_t LIGHT_TH_SUNNY_MV = 1200;          // Hranica: Polooblačno (650 - 1199 mV) -> Jasno / Priame slnko (>= 1200 mV)
+
+    // Dynamic Ranging pre TEMT6000 (Automatické prepínanie rozsahov)
+    constexpr bool LIGHT_DYNAMIC_RANGE_ENABLE = false;      // false = zatiaľ statický 2k režim (zapne sa po prepojení HW)
+    constexpr float LIGHT_LOAD_HIGH_OHMS = 10000.0f;        // Interný odpor na module TEMT6000 (10 kOhm) pre šero/svitanie
+    constexpr float LIGHT_LOAD_LOW_OHMS = 1667.0f;          // Paralelná kombinácia 10k || 2k (cca 1.67 kOhm) pre poludnie/slnko
+    constexpr uint32_t LIGHT_RANGE_SWITCH_LOW_MV = 120;     // Prah prechodu na HIGH citlivosť (< 120 mV čistých na 1.67k)
+    constexpr uint32_t LIGHT_RANGE_SWITCH_HIGH_MV = 1500;   // Prah prechodu na LOW citlivosť (> 1500 mV čistých na 10k)
 
     // Kalibrácia a nastavenie zrážkomera (Tipping Bucket)
     constexpr float RAIN_MM_PER_PULSE = 0.2794f;          // Kalibračný objem misky: 0.2794 mm (0.01 palca) na 1 preklop

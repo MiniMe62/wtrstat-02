@@ -578,4 +578,62 @@ Pre zabezpečenie dlhoročnej bezúdržbovej prevádzky na streche prešla veter
 * **Conformal Coating:** Celý disk ružice (spájkované spoje, medené krúžky, nožičky čipov a diód) je kompletne prelakovaný ochranným lakom.
 * **Drenáž:** V spodnom kryte je pripravený 1.5 mm odkvapkávací otvor na odvod prípadného kondenzátu.
 
+---
+
+## 23. Dynamic Ranging a rekalibrácia senzora jasu TEMT6000 (v2.2.5)
+
+Na základe reálnych meraní z testovacej stanice na vidieku (6. september) boli analyzované hraničné stavy senzora jasu:
+
+### 1. Diagnostika zistených anomálií:
+* **Ranná slepota (6:00 – 6:21 = 0%):** Slnko vychádza o 6:00, no senzor dával 0% až do 6:21 (6:25 = 6%). Spôsobené kombináciou difúznej kupoly (prepúšťa ~30% svetla), mŕtvej zóny ESP32 ADC (< 100 mV) a nulového offsetu 142 mV. Slabý ranný fotoprúd $15\,\mu\text{A}$ vytvoril na $2\text{ k}\Omega$ odpore iba $30\text{ mV}$, čo kód odrezal na nulu.
+* **Falošný stav „NOC“ pri dennom daždi:** Počas silného dažďa a tmavej búrkovej oblačnosti padlo vonkajšie svetlo na 200–500 luxov. Na $2\text{ k}\Omega$ odpore vzniklo len cca $25\text{ – }35\text{ mV}$. Pôvodný nočný prah bol nastavený na $80\text{ mV}$ (`LIGHT_TH_NIGHT_MV`), takže systém cez deň vyhlásil „Noc / Tma“, hoci hardvér bol plne funkčný.
+* **Skorá poludňajšia saturácia (11:20 = 100%):** Astronomické poludnie v septembri (letný čas CEST) nastáva okolo 12:45–12:50. Dosiahnutie stropu 100% ($2800\text{ mV}$) už o 11:20 znamenalo, že poludňajšie špičky boli orezané (clipping).
+
+### 2. Okamžité softvérové opravy (v2.2.5):
+* **Korekcia nočného prahu:** Prah `LIGHT_TH_NIGHT_MV` bol znížený z **$80\text{ mV}$ na $25\text{ mV}$**. Tmavý dážď a búrka už nehlásia falošnú noc, ale správne kategóriu *„Husto zamračené / Dážď“*.
+* **Prirodzený pokles pri oblačnosti:** Pokles jasu na $18\text{ – }30\,\%$ pri zakrytí slnka oblakom (keď zmiznú tiene na kamere) presne zodpovedá fyzikálnemu pomeru priameho slnka (~80 000 lx) voči difúznemu svetlu (~15 000 lx), t.j. pomeru cca 5:1.
+
+### 3. Hardvérové riešenie Dynamic Ranging (Bez nových súčiastok):
+Riešenie nevyžaduje žiadnu novú súčiastku ani ťahanie káblov na strechu. Využíva interný $10\text{ k}\Omega$ SMD odpor priamo na module senzora:
+
+```
+                  +3.3V (Napájanie stanice)
+                    |
+              [ ALS-PT19 / TEMT6000 ]
+                    |
+  GPIO 35 (ADC1) ---+-----------------------------+
+  (Signál zo strechy)                             |
+                    |                             |
+             [ R_modul (SMD) ]               [ R_sw (THT) ]
+                (10 kOhm)                      (2 kOhm)
+                    |                             |
+                   GND                       GPIO 25 (LIGHT_RANGE_PIN)
+```
+
+* **Úprava na doske ESP32:** Nožička existujúceho $2\text{ k}\Omega$ odporu, ktorá bola pripojená na **GND**, sa prepája do voľného pinu **GPIO 25** (`Pinout::LIGHT_RANGE_PIN`).
+* **HIGH Citlivosť (Šero / Svitanie / Dážď):** Pin 25 je nastavený ako `INPUT` (stav vysokej impedancie Hi-Z). Odpor $2\text{ k}\Omega$ je elektricky odpojený, aktívny je iba $10\text{ k}\Omega$ na module. Citlivosť vzrastie 5-násobne, ranný signál dáva $150\text{ – }300\text{ mV}$.
+* **LOW Citlivosť (Jasno / Poludňajšie slnko):** Pin 25 je nastavený ako `OUTPUT` a `LOW` ($0\text{ V}$, virtuálna zem). Odpor $2\text{ k}\Omega$ sa paralelne pripojí k $10\text{ k}\Omega$, výsledný odpor klesne na **$1.67\text{ k}\Omega$**. Senzor sa nepresýti ani pri 100 000 luxoch letného poludnia.
+* **UPOZORNENIE:** Na pine GPIO 25 sa **nikdy nesmie zapnúť `digitalWrite(HIGH)`**, aby nedošlo k privedeniu +3.3V do analógového vstupu GPIO 35.
+
+### 4. Hysterézia a plynulá normalizácia:
+* **Prepínacie prahy:**
+  * Prechod z LOW na HIGH: čisté napätie $< 120\text{ mV}$ na $1.67\text{ k}\Omega$ ($I < 72\,\mu\text{A}$, jas $< 4.3\,\%$).
+  * Prechod z HIGH na LOW: čisté napätie $> 1500\text{ mV}$ na $10\text{ k}\Omega$ ($I > 150\,\mu\text{A}$, jas $> 9.0\,\%$).
+  * Pomer $72\,\mu\text{A}$ vs. $150\,\mu\text{A}$ zabezpečuje dokonalú hysteréziu proti cvakaniu a šumu vetra v korunách stromov.
+* **Virtuálne milivolty:** Výpočet fotoprúdu $I = U_{\text{clean}} / R_{\text{active}}$ je nezávislý od zvoleného rozsahu. Z fotoprúdu sa spätne počíta virtuálne napätie pre pôvodný rozsah: $U_{\text{virtual}} = I \times 2000\,\Omega$. Výsledkom je, že hodnoty v percentách, prahy stavu oblohy aj grafy na webe/Adafruit IO majú dokonale plynulý priebeh bez skokov.
+* **Aktivácia:** V `Config.h` je prepínač `LIGHT_DYNAMIC_RANGE_ENABLE = false`. Do doby fyzického prepojenia odporu stanica pokračuje v bezpečnom statickom režime.
+
+### 5. Kalibračná tabuľka osvetlenia:
+
+| Situácia v prírode | Intenzita (Lux) | Fotoprúd čipu ($I_{\mu\text{A}}$) | Statický $2\text{ k}\Omega$ | Dynamic Range ($10\text{k} / 1.67\text{k}$) | Jas (%) | Stav oblohy |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Hlboká noc / Mesiac** | $0.1 - 2\text{ lx}$ | $< 0.1\,\mu\text{A}$ | $0\text{ mV}$ | $0 - 2\text{ mV}$ ($10\text{k}$) | **$0\,\%$** | **Noc / Tma** |
+| **Svitanie (6:00) / Súmrak** | $20 - 100\text{ lx}$ | $1 - 3\,\mu\text{A}$ | $0\text{ mV}$ *(offset)* | **$30 - 90\text{ mV}$ ($10\text{k}$)** | **$0.5 - 2\,\%$** | **Noc $\rightarrow$ Šero** |
+| **Búrka / Tmavý lejak** | $200 - 600\text{ lx}$ | $6 - 18\,\mu\text{A}$ | $20 - 35\text{ mV}$ | **$100 - 220\text{ mV}$ ($10\text{k}$)** | **$3 - 6\,\%$** | **Husto zamračené / Dážď** |
+| **Sychravo / Celistvá sivá obloha** | $1\,000 - 3\,000\text{ lx}$ | $30 - 90\,\mu\text{A}$ | $60 - 180\text{ mV}$ | **$300 - 900\text{ mV}$ ($10\text{k}$)** | **$7 - 15\,\%$** | **Zamračené / Oblačno** |
+| **Difúzne svetlo / Oblak pred slnkom** | $5\,000 - 15\,000\text{ lx}$ | $150 - 450\,\mu\text{A}$ | $300 - 900\text{ mV}$ | **$250 - 750\text{ mV}$ ($1.67\text{k}$)** | **$18 - 30\,\%$** | **Polooblačno / Difúzne** |
+| **Polooblačno / Presvitajúce slnko** | $20\,000 - 40\,000\text{ lx}$ | $600 - 1\,200\,\mu\text{A}$ | $1\,200 - 2\,400\text{ mV}$ | **$1\,000 - 2\,000\text{ mV}$ ($1.67\text{k}$)** | **$40 - 70\,\%$** | **Jasno / Priame slnko** |
+| **Jasno / Dopoludnie (10:00)** | $50\,000 - 70\,000\text{ lx}$ | $1\,500 - 2\,000\,\mu\text{A}$ | $2\,500 - 2\,800\text{ mV}$ | **$2\,100 - 2\,400\text{ mV}$ ($1.67\text{k}$)** | **$75 - 85\,\%$** | **Jasno / Priame slnko** |
+| **Poludnie (12:45 CEST)** | $80\,000 - 100\,000+\text{ lx}$ | $2\,400 - 3\,000\,\mu\text{A}$ | $> 2\,800\text{ mV}$ *(clipping)* | **$2\,500 - 2\,750\text{ mV}$ ($1.67\text{k}$)** | **$90 - 98\,\%$** | **Jasno / Priame slnko** |
+
 
