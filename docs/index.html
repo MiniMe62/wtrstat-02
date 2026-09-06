@@ -669,6 +669,9 @@
                         <div class="card-sub" style="font-size:0.95rem; font-weight:600; color:var(--primary);" id="windDirDeg">--°</div>
                     </div>
                 </div>
+                <div id="windGlitchRow" style="display:none; margin-top:8px; font-size:0.75rem; padding:4px 8px; border-radius:6px; background:rgba(249,115,22,0.12); border:1px solid rgba(249,115,22,0.3); color:#fb923c;">
+                    <span>⚠️ Glitch: <span id="windGlitchText">--</span></span>
+                </div>
             </div>
 
             <div class="card">
@@ -733,7 +736,7 @@
                             <td>Smer vetra (Azimut)</td>
                             <td class="val-highlight" id="tblWindDirDeg">--</td>
                             <td>° (Stupne)</td>
-                            <td>WindVane ADC delič (GPIO 34)</td>
+                            <td id="tblVaneDetail">WindVane ADC delič (GPIO 34)</td>
                         </tr>
                         <tr>
                             <td>Smer vetra (Názov)</td>
@@ -1118,7 +1121,7 @@
 
         <footer>
             <div style="margin-bottom: 4px;">wtrStat-02 • ESP32 Weather Station • Hosted on GitHub Pages</div>
-            <div style="font-size: 0.78rem; opacity: 0.85;">Firmware v2.2.9 • Heliograph Intervals & Mobile Badge Edition</div>
+            <div style="font-size: 0.78rem; opacity: 0.85;">Firmware v2.2.10 • Wind Glitch Diagnostic Edition</div>
         </footer>
     </div>
 
@@ -3156,6 +3159,18 @@
                 document.getElementById('arrow').style.transform = `rotate(${data.windDirDeg}deg)`;
             }
 
+            if (document.getElementById('windGlitchRow')) {
+                if (data.glitchCount && data.glitchCount > 0) {
+                    document.getElementById('windGlitchRow').style.display = 'block';
+                    let txt = data.glitchCount + 'x';
+                    if (data.glitchOppositeCount > 0) txt += ' (' + data.glitchOppositeCount + 'x ~180°)';
+                    txt += ' • ' + (data.glitchLastFrom || '?') + '→' + (data.glitchLastTo || '?') + ' (Δ' + Math.round(data.glitchLastDiff || 0) + '°, ' + (data.glitchLastRatio ? data.glitchLastRatio.toFixed(3) : '') + ')';
+                    document.getElementById('windGlitchText').innerText = txt;
+                } else {
+                    document.getElementById('windGlitchRow').style.display = 'none';
+                }
+            }
+
             if (document.getElementById('lightPercent')) {
                 if (data.light !== null && data.light !== undefined && !isNaN(data.light)) {
                     const lVal = Number(data.light);
@@ -3182,6 +3197,13 @@
             document.getElementById('tblWindSpeed').innerText = speedFormatted;
             document.getElementById('tblWindDirDeg').innerText = degFormatted;
             document.getElementById('tblWindDirName').innerText = dirName;
+            if (document.getElementById('tblVaneDetail') && data.vaneRatio !== undefined) {
+                let detail = 'WindVane (Pomer: ' + data.vaneRatio.toFixed(3);
+                if (data.vaneMv !== undefined) detail += ' • ' + data.vaneMv + ' mV';
+                if (data.glitchCount !== undefined && data.glitchCount > 0) detail += ' • ' + data.glitchCount + ' glitchov';
+                detail += ')';
+                document.getElementById('tblVaneDetail').innerText = detail;
+            }
             document.getElementById('tblWifiSSID').innerText = data.wifiSSID || '--';
             document.getElementById('tblWifiRSSI').innerText = (data.rssi ? data.rssi + ' dBm' : '--');
             document.getElementById('tblIp').innerText = data.ip || '--';

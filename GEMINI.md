@@ -15,3 +15,6 @@ Pri akejkoľvek úprave kódu (aj menších zmenách, opravách bugov alebo vyle
 5. **Git a nasadenie**:
    - Commitnúť všetky zmenené súbory vrátane binárky.
    - Pushnúť do vetiev `develop` a `main`, aby sa prejavilo OTA aj GitHub Pages.
+
+## 2. Pravidlo autonómneho dokončenia
+Akonáhle používateľ odsúhlasí implementačný plán (alebo zadá požiadavku na implementáciu), dokonči celý cyklus autonómne bez pýtania sa na medzikroky: vykonaj úpravy kódu, navýš verzie, skompiluj projekt, nakopíruj binárku, sprav git commit a push do vetiev develop aj main. Zastav sa a pýtaj sa iba v prípade kritickej chyby, ktorú nevieš sám vyriešiť.

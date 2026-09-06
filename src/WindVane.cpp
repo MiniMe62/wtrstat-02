@@ -95,15 +95,25 @@ WindVane::WindVane(uint8_t pin, uint8_t vccPin)
       _instantAngle(0.0f),
       _instantDirName("N/A"),
       _lastRatio(0.0f),
+      _lastVaneMv(0),
+      _lastVccMv(0),
       _sinSum(0.0),
       _cosSum(0.0),
-      _sampleCount(0) {
+      _sampleCount(0),
+      _glitchInfo(),
+      _prevDirectionIndex(-1),
+      _lastUpdateMs(0) {
 }
 
 void WindVane::begin() {
     analogReadResolution(12);
     resetAggregation();
     Serial.printf("[WindVane] Inicializovaný na ADC1 (Vane: %d, VccRef: %d)\n", _pin, _vccPin);
+}
+
+void WindVane::resetGlitchStats() {
+    _glitchInfo = WindGlitchInfo();
+    Serial.println("[WindGlitch] Štatistika glitchov bola vynulovaná.");
 }
 
 float WindVane::readRatioAveraged(uint8_t samples) {
@@ -140,6 +150,12 @@ float WindVane::readRatioAveraged(uint8_t samples) {
         vccSum += vccBuf[i];
     }
 
+    uint8_t effectiveSamples = samples - (2 * trim);
+    if (effectiveSamples > 0) {
+        _lastVaneMv = (uint16_t)(vaneSum / effectiveSamples);
+        _lastVccMv = (uint16_t)(vccSum / effectiveSamples);
+    }
+
     if (vccSum == 0) return 0.0f; // Ochrana pred delením nulou
     return (float)vaneSum / (float)vccSum;
 }
@@ -163,13 +179,56 @@ int WindVane::findClosestDirectionIndex(float measuredRatio) const {
 }
 
 void WindVane::update() {
+    unsigned long now = millis();
+    // Ochrana pred duplicitným meraním v tom istom cykle (napr. volanie z dvoch agregátorov)
+    if (_lastUpdateMs > 0 && (now - _lastUpdateMs < 500)) {
+        return;
+    }
+    _lastUpdateMs = now;
+
     float ratio = readRatioAveraged(16);
     _lastRatio = ratio;
     int idx = findClosestDirectionIndex(ratio);
 
     if (idx >= 0) {
-        _instantAngle = CALIBRATION_TABLE[idx].angleDeg;
-        _instantDirName = CALIBRATION_TABLE[idx].name;
+        float newAngle = CALIBRATION_TABLE[idx].angleDeg;
+        const char* newDirName = CALIBRATION_TABLE[idx].name;
+
+        // Diagnostika skokov / glitchov (napr. parazitné siločiary +180°)
+        if (_prevDirectionIndex >= 0 && _prevDirectionIndex != idx) {
+            float fromAngle = CALIBRATION_TABLE[_prevDirectionIndex].angleDeg;
+            float toAngle = newAngle;
+            float diff = std::abs(toAngle - fromAngle);
+            if (diff > 180.0f) diff = 360.0f - diff;
+
+            // Skok o >= 112.5° (5 alebo viac 22.5° sektorov zo 16)
+            if (diff >= 112.5f) {
+                _glitchInfo.totalCount++;
+                if (diff >= 135.0f) {
+                    _glitchInfo.oppositeCount++;
+                }
+                strncpy(_glitchInfo.lastFrom, CALIBRATION_TABLE[_prevDirectionIndex].name, sizeof(_glitchInfo.lastFrom) - 1);
+                _glitchInfo.lastFrom[sizeof(_glitchInfo.lastFrom) - 1] = '\0';
+                strncpy(_glitchInfo.lastTo, newDirName, sizeof(_glitchInfo.lastTo) - 1);
+                _glitchInfo.lastTo[sizeof(_glitchInfo.lastTo) - 1] = '\0';
+                _glitchInfo.lastFromAngle = fromAngle;
+                _glitchInfo.lastToAngle = toAngle;
+                _glitchInfo.lastAngleDiff = diff;
+                _glitchInfo.lastRatio = ratio;
+                _glitchInfo.lastVaneMv = _lastVaneMv;
+                _glitchInfo.lastVccMv = _lastVccMv;
+                _glitchInfo.lastTimestampSec = (uint32_t)(now / 1000);
+
+                Serial.printf("[WindGlitch] !!! SKOK o %.1f° !!! %s (%.1f°) -> %s (%.1f°) | ratio=%.3f (Vane: %d mV, Vcc: %d mV) | Spolu: %u (protichodne >=135°: %u)\n",
+                              diff, _glitchInfo.lastFrom, fromAngle, _glitchInfo.lastTo, toAngle,
+                              ratio, _lastVaneMv, _lastVccMv,
+                              _glitchInfo.totalCount, _glitchInfo.oppositeCount);
+            }
+        }
+        _prevDirectionIndex = idx;
+
+        _instantAngle = newAngle;
+        _instantDirName = newDirName;
 
         // Goniometrická akumulácia (vektorový súčet sin a cos uhla)
         double rad = _instantAngle * (M_PI / 180.0);
@@ -249,6 +308,13 @@ void WindVane::printDebugStats() const {
                           st.minRatio, st.maxRatio, avg, st.count);
         }
     }
+    if (_glitchInfo.totalCount > 0) {
+        Serial.printf("[WindGlitch] Celkovo: %u (protichodne >=135°: %u) | Posledny: %s (%.1f°) -> %s (%.1f°), skok %.1f°, ratio: %.3f\n",
+                      _glitchInfo.totalCount, _glitchInfo.oppositeCount,
+                      _glitchInfo.lastFrom, _glitchInfo.lastFromAngle,
+                      _glitchInfo.lastTo, _glitchInfo.lastToAngle,
+                      _glitchInfo.lastAngleDiff, _glitchInfo.lastRatio);
+    }
 }
 
 String WindVane::getFormattedStats() const {
@@ -267,6 +333,15 @@ String WindVane::getFormattedStats() const {
     }
     if (active == 0) {
         out += "Zatial 0 vzoriek.\n";
+    }
+    if (_glitchInfo.totalCount > 0) {
+        char gBuf[160];
+        snprintf(gBuf, sizeof(gBuf), "\n--- Glitch Detektor (+180°) ---\nSkoky >=112.5°: %u (z toho >=135°: %u)\nPosledny: %s (%.1f°) -> %s (%.1f°), skok %.1f°, ratio: %.3f (%d mV)\n",
+                 _glitchInfo.totalCount, _glitchInfo.oppositeCount,
+                 _glitchInfo.lastFrom, _glitchInfo.lastFromAngle,
+                 _glitchInfo.lastTo, _glitchInfo.lastToAngle,
+                 _glitchInfo.lastAngleDiff, _glitchInfo.lastRatio, _glitchInfo.lastVaneMv);
+        out += gBuf;
     }
     return out;
 }

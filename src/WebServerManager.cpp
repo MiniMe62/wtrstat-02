@@ -672,6 +672,10 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                         <div class="card-sub" id="windDirDeg">--°</div>
                     </div>
                 </div>
+                <div id="windGlitchRow" style="display:none; margin-top:8px; font-size:0.75rem; padding:4px 8px; border-radius:6px; background:rgba(249,115,22,0.12); border:1px solid rgba(249,115,22,0.3); color:#fb923c; align-items:center; justify-content:space-between;">
+                    <span>⚠️ Glitch: <span id="windGlitchText">--</span></span>
+                    <button type="button" onclick="resetGlitchStats()" style="background:transparent; border:1px solid rgba(251,146,60,0.5); color:#fb923c; border-radius:4px; font-size:0.68rem; cursor:pointer; padding:1px 5px; margin-left:6px;">Reset</button>
+                </div>
             </div>
 
             <div class="card">
@@ -775,7 +779,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                             <td>Smer vetra (Azimut)</td>
                             <td class="val-highlight" id="tblWindDirDeg">--</td>
                             <td>° (Stupne)</td>
-                            <td>WindVane ADC delič (GPIO 34)</td>
+                            <td id="tblVaneDetail">WindVane ADC delič (GPIO 34)</td>
                         </tr>
                         <tr>
                             <td>Smer vetra (Názov)</td>
@@ -3592,6 +3596,18 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 document.getElementById('windDirDeg').innerText = degFormatted;
                 document.getElementById('arrow').style.transform = `rotate(${data.windDirDeg}deg)`;
 
+                if (document.getElementById('windGlitchRow')) {
+                    if (data.glitchCount && data.glitchCount > 0) {
+                        document.getElementById('windGlitchRow').style.display = 'flex';
+                        let txt = data.glitchCount + 'x';
+                        if (data.glitchOppositeCount > 0) txt += ' (' + data.glitchOppositeCount + 'x ~180°)';
+                        txt += ' • ' + (data.glitchLastFrom || '?') + '→' + (data.glitchLastTo || '?') + ' (Δ' + Math.round(data.glitchLastDiff || 0) + '°, ' + (data.glitchLastRatio ? data.glitchLastRatio.toFixed(3) : '') + ')';
+                        document.getElementById('windGlitchText').innerText = txt;
+                    } else {
+                        document.getElementById('windGlitchRow').style.display = 'none';
+                    }
+                }
+
                 if (data.lightPercent !== undefined) {
                     document.getElementById('lightPercent').innerHTML = data.lightPercent.toFixed(0) + ' <span class="unit">%</span>';
                     document.getElementById('skyConditionBadge').innerText = data.skyCondition || '--';
@@ -3612,6 +3628,13 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 document.getElementById('tblWindSpeed').innerText = speedFormatted;
                 document.getElementById('tblWindDirDeg').innerText = degFormatted;
                 document.getElementById('tblWindDirName').innerText = data.windDirName;
+                if (document.getElementById('tblVaneDetail') && data.vaneRatio !== undefined) {
+                    let detail = 'WindVane (Pomer: ' + data.vaneRatio.toFixed(3);
+                    if (data.vaneMv !== undefined) detail += ' • ' + data.vaneMv + ' mV';
+                    if (data.glitchCount !== undefined && data.glitchCount > 0) detail += ' • ' + data.glitchCount + ' glitchov';
+                    detail += ')';
+                    document.getElementById('tblVaneDetail').innerText = detail;
+                }
                 if (document.getElementById('tblLight')) {
                     document.getElementById('tblLight').innerText = (data.lightPercent !== undefined) ? (data.lightPercent.toFixed(1) + ' % (' + data.skyCondition + ')') : '--';
                 }
@@ -3693,6 +3716,19 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 }
             } catch (e) {
                 console.error("Simulation error:", e);
+            }
+        }
+
+        async function resetGlitchStats() {
+            try {
+                const res = await fetch('/api/vane/reset-glitch', { method: 'POST' });
+                if (res.ok) {
+                    const row = document.getElementById('windGlitchRow');
+                    if (row) row.style.display = 'none';
+                    fetchLive();
+                }
+            } catch (e) {
+                console.error("Reset glitch error:", e);
             }
         }
 
@@ -4133,6 +4169,14 @@ void WebServerManager::begin(const TempSensorManager* tempMgr, const Anemometer*
         _server.send(200, "application/json", String("{\"calibMode\":") + (newState ? "true" : "false") + "}");
     });
     _server.on("/api/test/rain-tip", [this]() { handleApiTestRainTip(); });
+    _server.on("/api/vane/reset-glitch", HTTP_ANY, [this]() {
+        if (_windVane) {
+            const_cast<WindVane*>(_windVane)->resetGlitchStats();
+            _server.send(200, "application/json", "{\"status\":\"ok\",\"message\":\"Wind glitch stats reset\"}");
+        } else {
+            _server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"WindVane not available\"}");
+        }
+    });
     _server.on("/api/light/dr", HTTP_ANY, [this]() {
         if (!_lightSensor) {
             _server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"LightSensor nie je inicializovany\"}");
@@ -4275,7 +4319,7 @@ void WebServerManager::handleApiLive() {
         return;
     }
 
-    StaticJsonDocument<1024> doc;
+    StaticJsonDocument<1280> doc;
     doc["stationId"] = Config::LOC_ID;
     doc["version"] = Config::FIRMWARE_VERSION;
     doc["buildDate"] = __DATE__;
@@ -4287,6 +4331,22 @@ void WebServerManager::handleApiLive() {
     doc["windDirDeg"] = _windVane->getInstantAngle();
     doc["windDirName"] = _windVane->getInstantDirName();
     doc["vaneRatio"] = _windVane->getLastRatio();
+    doc["vaneMv"] = _windVane->getLastVaneMv();
+    doc["vccMv"] = _windVane->getLastVccMv();
+
+    const WindGlitchInfo& g = _windVane->getGlitchInfo();
+    doc["glitchCount"] = g.totalCount;
+    doc["glitchOppositeCount"] = g.oppositeCount;
+    if (g.totalCount > 0) {
+        doc["glitchLastFrom"] = g.lastFrom;
+        doc["glitchLastTo"] = g.lastTo;
+        doc["glitchLastDiff"] = g.lastAngleDiff;
+        doc["glitchLastRatio"] = g.lastRatio;
+        doc["glitchLastVaneMv"] = g.lastVaneMv;
+        uint32_t nowSec = (uint32_t)(millis() / 1000);
+        doc["glitchLastSecAgo"] = (nowSec >= g.lastTimestampSec) ? (nowSec - g.lastTimestampSec) : 0;
+    }
+
     doc["wifiSSID"] = _wifiService->getConnectedSSID();
     doc["rssi"] = _wifiService->getRSSI();
     doc["ip"] = _wifiService->getIPAddress();
