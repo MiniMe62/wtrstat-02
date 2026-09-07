@@ -462,9 +462,15 @@ bool CloudOtaService::checkAdafruitCommand() {
                 uint32_t uptimeSec = millis() / 1000;
                 uint32_t hrs = uptimeSec / 3600;
                 uint32_t mins = (uptimeSec % 3600) / 60;
-                char buf[120];
-                snprintf(buf, sizeof(buf), "v%s (%s) | Heap:%uKB | RSSI:%ddBm | Up:%uh%02um",
-                         Config::FIRMWARE_VERSION, Config::LOC_ID, ESP.getFreeHeap() / 1024, WiFi.RSSI(), hrs, mins);
+                const char* drStr = "DR:--";
+                if (_lightSensor) {
+                    drStr = _lightSensor->isDynamicRangeEnabled()
+                                ? (_lightSensor->isHighSensitivity() ? "DR:ON(Hi)" : "DR:ON(Lo)")
+                                : "DR:OFF";
+                }
+                char buf[128];
+                snprintf(buf, sizeof(buf), "v%s (%s) | %s | Heap:%uKB | RSSI:%ddBm | Up:%uh%02um",
+                         Config::FIRMWARE_VERSION, Config::LOC_ID, drStr, ESP.getFreeHeap() / 1024, WiFi.RSSI(), hrs, mins);
                 setAdafruitCommandStatus(String(buf));
             }
         }
