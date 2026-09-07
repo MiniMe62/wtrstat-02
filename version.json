@@ -1,13 +1,13 @@
 {
   "TEST_VIDIEK": {
-    "version": "2.2.10",
+    "version": "2.2.11",
     "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_TEST_VIDIEK.bin",
-    "notes": "v2.2.10: WindVane jump/glitch diagnostic (+180 deg parasitic magnetic field tracking) and live dashboard status"
+    "notes": "v2.2.11: Dynamic Light Ranging moved to GPIO 19 (breadboard accessible side, OLED-friendly)"
   },
   "TEST": {
-    "version": "2.2.10",
+    "version": "2.2.11",
     "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_TEST_VIDIEK.bin",
-    "notes": "v2.2.10: WindVane jump/glitch diagnostic (+180 deg parasitic magnetic field tracking) and live dashboard status"
+    "notes": "v2.2.11: Dynamic Light Ranging moved to GPIO 19 (breadboard accessible side, OLED-friendly)"
   },
   "TEST_MESTO": {
     "version": "2.0.2",

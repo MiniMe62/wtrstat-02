@@ -617,13 +617,13 @@ Riešenie nevyžaduje žiadnu novú súčiastku ani ťahanie káblov na strechu.
              [ R_modul (SMD) ]               [ R_sw (THT) ]
                 (10 kOhm)                      (2 kOhm)
                     |                             |
-                   GND                       GPIO 25 (LIGHT_RANGE_PIN)
+                    GND                       GPIO 19 (LIGHT_RANGE_PIN)
 ```
 
-* **Úprava na doske ESP32:** Nožička existujúceho $2\text{ k}\Omega$ odporu, ktorá bola pripojená na **GND**, sa prepája do voľného pinu **GPIO 25** (`Pinout::LIGHT_RANGE_PIN`).
-* **HIGH Citlivosť (Šero / Svitanie / Dážď):** Pin 25 je nastavený ako `INPUT` (stav vysokej impedancie Hi-Z). Odpor $2\text{ k}\Omega$ je elektricky odpojený, aktívny je iba $10\text{ k}\Omega$ na module. Citlivosť vzrastie 5-násobne, ranný signál dáva $150\text{ – }300\text{ mV}$.
-* **LOW Citlivosť (Jasno / Poludňajšie slnko):** Pin 25 je nastavený ako `OUTPUT` a `LOW` ($0\text{ V}$, virtuálna zem). Odpor $2\text{ k}\Omega$ sa paralelne pripojí k $10\text{ k}\Omega$, výsledný odpor klesne na **$1.67\text{ k}\Omega$**. Senzor sa nepresýti ani pri 100 000 luxoch letného poludnia.
-* **UPOZORNENIE:** Na pine GPIO 25 sa **nikdy nesmie zapnúť `digitalWrite(HIGH)`**, aby nedošlo k privedeniu +3.3V do analógového vstupu GPIO 35.
+* **Úprava na doske ESP32:** Nožička existujúceho $2\text{ k}\Omega$ odporu, ktorá bola pripojená na **GND**, sa prepája do voľného pinu **GPIO 19** (`Pinout::LIGHT_RANGE_PIN` na voľnej prístupnej strane dosky, vedľa D21).
+* **HIGH Citlivosť (Šero / Svitanie / Dážď):** Pin 19 je nastavený ako `INPUT` (stav vysokej impedancie Hi-Z). Odpor $2\text{ k}\Omega$ je elektricky odpojený, aktívny je iba $10\text{ k}\Omega$ na module. Citlivosť vzrastie 5-násobne, ranný signál dáva $150\text{ – }300\text{ mV}$.
+* **LOW Citlivosť (Jasno / Poludňajšie slnko):** Pin 19 je nastavený ako `OUTPUT` a `LOW` ($0\text{ V}$, virtuálna zem). Odpor $2\text{ k}\Omega$ sa paralelne pripojí k $10\text{ k}\Omega$, výsledný odpor klesne na **$1.67\text{ k}\Omega$**. Senzor sa nepresýti ani pri 100 000 luxoch letného poludnia.
+* **UPOZORNENIE:** Na pine GPIO 19 sa **nikdy nesmie zapnúť `digitalWrite(HIGH)`**, aby nedošlo k privedeniu +3.3V do analógového vstupu GPIO 35.
 
 ### 4. Hysterézia a plynulá normalizácia:
 * **Prepínacie prahy:**
