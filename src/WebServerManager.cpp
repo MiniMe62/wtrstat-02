@@ -568,19 +568,25 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
         .sunshine-segment.overcast { background: #94a3b8; }
         .sunshine-segment.cloudy { background: #fde047; }
         .sunshine-segment.sunny { background: #f59e0b; }
-        .sunshine-segment.future {
-            background: repeating-linear-gradient(
-                -45deg,
-                rgba(30, 41, 59, 0.45),
-                rgba(30, 41, 59, 0.45) 3px,
-                rgba(15, 23, 42, 0.75) 3px,
-                rgba(15, 23, 42, 0.75) 6px
-            );
-            opacity: 0.6;
-        }
+        .sunshine-segment.future,
         .sunshine-segment.nodata {
-            background: #0f172a;
-            opacity: 0.35;
+            background-color: #0b1120;
+            background-image: 
+                repeating-linear-gradient(
+                    45deg,
+                    rgba(148, 163, 184, 0.35) 0,
+                    rgba(148, 163, 184, 0.35) 1px,
+                    transparent 0,
+                    transparent 6px
+                ),
+                repeating-linear-gradient(
+                    -45deg,
+                    rgba(148, 163, 184, 0.35) 0,
+                    rgba(148, 163, 184, 0.35) 1px,
+                    transparent 0,
+                    transparent 6px
+                );
+            opacity: 0.85;
         }
         .sunshine-divider-midnight {
             width: 2px;
@@ -976,7 +982,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     <span class="legend-pill-sun"><span class="dot" style="background:#94a3b8;"></span> Zamračené</span>
                     <span class="legend-pill-sun"><span class="dot" style="background:#fde047;"></span> Polooblačno</span>
                     <span class="legend-pill-sun"><span class="dot" style="background:#f59e0b;"></span> Priame slnko (Svit)</span>
-                    <span class="legend-pill-sun"><span class="dot" style="background: repeating-linear-gradient(-45deg, rgba(30,41,59,0.8), rgba(30,41,59,0.8) 2px, rgba(15,23,42,0.9) 2px, rgba(15,23,42,0.9) 4px); border: 1px dashed rgba(255,255,255,0.3);"></span> Bez dát / Budúcnosť</span>
+                    <span class="legend-pill-sun"><span class="dot" style="background-color: #0b1120; background-image: repeating-linear-gradient(45deg, rgba(148,163,184,0.4) 0, rgba(148,163,184,0.4) 1px, transparent 0, transparent 4px), repeating-linear-gradient(-45deg, rgba(148,163,184,0.4) 0, rgba(148,163,184,0.4) 1px, transparent 0, transparent 4px); border: 1px solid rgba(148,163,184,0.3);"></span> Bez dát / Budúcnosť</span>
                     <span class="legend-pill-sun"><span class="dot" style="background:#ef4444; box-shadow: 0 0 4px #ef4444;"></span> Polnoc (00:00)</span>
                 </div>
             </div>
