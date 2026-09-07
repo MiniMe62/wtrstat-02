@@ -676,6 +676,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     <div class="compass-details">
                         <div class="card-val" id="windDirNameText" style="font-size: 1.5rem;">--</div>
                         <div class="card-sub" id="windDirDeg">--°</div>
+                        <div style="font-size: 0.8rem; color: var(--primary); font-weight: 600; margin-top: 2px;" id="windVaneRatioText">Pomer: --</div>
                     </div>
                 </div>
                 <div id="windGlitchRow" style="display:none; margin-top:8px; font-size:0.75rem; padding:4px 8px; border-radius:6px; background:rgba(249,115,22,0.12); border:1px solid rgba(249,115,22,0.3); color:#fb923c; align-items:center; justify-content:space-between;">
@@ -3601,6 +3602,18 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 document.getElementById('windDirNameText').innerText = data.windDirName;
                 document.getElementById('windDirDeg').innerText = degFormatted;
                 document.getElementById('arrow').style.transform = `rotate(${data.windDirDeg}deg)`;
+
+                if (document.getElementById('windVaneRatioText')) {
+                    if (data.vaneRatio !== undefined && data.vaneRatio !== null) {
+                        let rTxt = 'Pomer: ' + Number(data.vaneRatio).toFixed(3);
+                        if (data.vaneMv !== undefined && data.vaneMv !== null) {
+                            rTxt += ' (' + Math.round(data.vaneMv) + ' mV)';
+                        }
+                        document.getElementById('windVaneRatioText').innerText = rTxt;
+                    } else {
+                        document.getElementById('windVaneRatioText').innerText = '';
+                    }
+                }
 
                 if (document.getElementById('windGlitchRow')) {
                     if (data.glitchCount && data.glitchCount > 0) {

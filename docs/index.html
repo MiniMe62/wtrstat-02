@@ -673,6 +673,7 @@
                     <div>
                         <div class="card-val" style="margin:0; font-size:2.2rem; font-weight:700;" id="windDirNameText">--</div>
                         <div class="card-sub" style="font-size:0.95rem; font-weight:600; color:var(--primary);" id="windDirDeg">--°</div>
+                        <div style="font-size: 0.8rem; color: var(--primary); font-weight: 600; margin-top: 2px;" id="windVaneRatioText">Pomer: --</div>
                     </div>
                 </div>
                 <div id="windGlitchRow" style="display:none; margin-top:8px; font-size:0.75rem; padding:4px 8px; border-radius:6px; background:rgba(249,115,22,0.12); border:1px solid rgba(249,115,22,0.3); color:#fb923c;">
@@ -1127,7 +1128,7 @@
 
         <footer>
             <div style="margin-bottom: 4px;">wtrStat-02 • ESP32 Weather Station • Hosted on GitHub Pages</div>
-            <div style="font-size: 0.78rem; opacity: 0.85;">Firmware v2.2.13 • Dynamic Range Diagnostics Edition</div>
+            <div style="font-size: 0.78rem; opacity: 0.85;">Firmware v2.2.14 • Wind Glitch & Live Ratio Tuning Edition</div>
         </footer>
     </div>
 
@@ -3163,6 +3164,18 @@
             document.getElementById('windDirDeg').innerText = degFormatted;
             if (data.windDirDeg !== null && data.windDirDeg !== undefined && !isNaN(data.windDirDeg)) {
                 document.getElementById('arrow').style.transform = `rotate(${data.windDirDeg}deg)`;
+            }
+
+            if (document.getElementById('windVaneRatioText')) {
+                if (data.vaneRatio !== undefined && data.vaneRatio !== null) {
+                    let rTxt = 'Pomer: ' + Number(data.vaneRatio).toFixed(3);
+                    if (data.vaneMv !== undefined && data.vaneMv !== null) {
+                        rTxt += ' (' + Math.round(data.vaneMv) + ' mV)';
+                    }
+                    document.getElementById('windVaneRatioText').innerText = rTxt;
+                } else {
+                    document.getElementById('windVaneRatioText').innerText = '';
+                }
             }
 
             if (document.getElementById('windGlitchRow')) {
