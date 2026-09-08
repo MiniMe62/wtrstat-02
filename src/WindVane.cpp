@@ -69,24 +69,24 @@ SSZ : 0.688 (0.671-0.706) n=3
 
 
 // Kalibračná tabuľka nameraných pomerov (pomer = mV_smerovka / mV_vcc)
-// Aktualizované 5.9.2026 podľa reálnej strešnej kalibrácie SITE_TEST_VIDIEK
+// Aktualizované 8.9.2026 podľa reálnej manuálnej kalibrácie na stole (všetkých 16 smerov zmeraných)
 const WindCalib WindVane::CALIBRATION_TABLE[WindVane::NUM_DIRECTIONS] = {
-    {0.737f,   0.0f, "S"},
-    {0.604f,  22.5f, "SSV"},
-    {1.017f,  45.0f, "SV"},
-    {0.476f,  67.5f, "VSV"},
-    {0.501f,  90.0f, "V"},
-    {0.493f, 112.5f, "VJV"},
-    {1.170f, 135.0f, "JV"},
-    {0.528f, 157.5f, "JJV"},
-    {0.579f, 180.0f, "J"},
-    {0.560f, 202.5f, "JJZ"},
-    {1.442f, 225.0f, "JZ"},
-    {0.791f, 247.5f, "ZJZ"},
-    {0.879f, 270.0f, "Z"},
-    {0.817f, 292.5f, "ZSZ"},
-    {1.691f, 315.0f, "SZ"},
-    {0.688f, 337.5f, "SSZ"}
+    {0.748f,   0.0f, "S"},
+    {0.626f,  22.5f, "SSV"},
+    {1.011f,  45.0f, "SV"},
+    {0.485f,  67.5f, "VSV"},
+    {0.520f,  90.0f, "V"},
+    {0.494f, 112.5f, "VJV"},
+    {1.165f, 135.0f, "JV"},
+    {0.551f, 157.5f, "JJV"},
+    {0.595f, 180.0f, "J"},
+    {0.570f, 202.5f, "JJZ"},
+    {1.438f, 225.0f, "JZ"},
+    {0.790f, 247.5f, "ZJZ"},
+    {0.874f, 270.0f, "Z"},
+    {0.831f, 292.5f, "ZSZ"},
+    {1.693f, 315.0f, "SZ"},
+    {0.724f, 337.5f, "SSZ"}
 };
 
 WindVane::WindVane(uint8_t pin, uint8_t vccPin)

@@ -1,13 +1,13 @@
 {
   "TEST_VIDIEK": {
-    "version": "2.2.14",
+    "version": "2.2.15",
     "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_TEST_VIDIEK.bin",
-    "notes": "v2.2.14: Display live WindVane ratio and mV directly on wind card for roof tuning"
+    "notes": "v2.2.15: Updated WindVane master calibration table with all 16 precise bench-measured directions"
   },
   "TEST": {
-    "version": "2.2.14",
+    "version": "2.2.15",
     "firmware_url": "https://raw.githubusercontent.com/MiniMe62/wtrStat-02/main/bin/firmware_TEST_VIDIEK.bin",
-    "notes": "v2.2.14: Display live WindVane ratio and mV directly on wind card for roof tuning"
+    "notes": "v2.2.15: Updated WindVane master calibration table with all 16 precise bench-measured directions"
   },
   "TEST_MESTO": {
     "version": "2.0.2",
